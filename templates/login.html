@@ -1,0 +1,290 @@
+{% extends "base.html" %}
+
+{% block title %}ログイン - 資産管理{% endblock %}
+
+{% block extra_styles %}
+<style>
+    /* ✅ 修正: モダンできれいなデザイン */
+    body {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        min-height: 100vh;
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    }
+    
+    .container {
+        width: 100%;
+        max-width: 100%;
+        padding: 20px;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+    }
+    
+    .login-container { 
+        background: white; 
+        padding: 50px 40px; 
+        border-radius: 20px; 
+        box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+        width: 100%;
+        max-width: 500px;
+        animation: slideUp 0.5s ease-out;
+    }
+
+    @keyframes slideUp {
+        from {
+            opacity: 0;
+            transform: translateY(30px);
+        }
+        to {
+            opacity: 1;
+            transform: translateY(0);
+        }
+    }
+    
+    .login-container h1 {
+        font-size: 36px;
+        margin: 0 0 40px 0;
+        text-align: center;
+        color: #333;
+        font-weight: 700;
+        letter-spacing: -0.5px;
+    }
+    
+    .form-group {
+        margin-bottom: 28px;
+    }
+    
+    .form-group label {
+        display: block;
+        margin-bottom: 10px;
+        font-weight: 600;
+        font-size: 16px;
+        color: #333;
+        letter-spacing: 0.5px;
+    }
+    
+    .form-group input[type="text"], 
+    .form-group input[type="password"] { 
+        width: 100%; 
+        padding: 16px 18px; 
+        border: 2px solid #e0e0e0; 
+        border-radius: 12px; 
+        box-sizing: border-box;
+        font-size: 16px;
+        transition: all 0.3s ease;
+        background: #f8f9fa;
+    }
+    
+    .form-group input:focus {
+        outline: none;
+        border-color: #667eea;
+        background: white;
+        box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+    }
+    
+    .form-group button { 
+        width: 100%; 
+        padding: 18px; 
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white; 
+        border: none; 
+        border-radius: 12px; 
+        cursor: pointer; 
+        font-size: 18px;
+        font-weight: 700;
+        transition: all 0.3s ease;
+        letter-spacing: 0.5px;
+        box-shadow: 0 10px 30px rgba(102, 126, 234, 0.3);
+    }
+    
+    .form-group button:hover { 
+        transform: translateY(-2px);
+        box-shadow: 0 15px 40px rgba(102, 126, 234, 0.4);
+    }
+    
+    .form-group button:active {
+        transform: translateY(0);
+    }
+    
+    .register-link {
+        text-align: center;
+        margin-top: 32px;
+        padding-top: 28px;
+        border-top: 1px solid #e0e0e0;
+        font-size: 16px;
+        color: #666;
+    }
+    
+    .register-link p {
+        margin: 0 0 12px 0;
+        line-height: 1.8;
+        font-weight: 500;
+    }
+    
+    .register-link a {
+        color: #667eea;
+        text-decoration: none;
+        font-weight: 700;
+        transition: all 0.2s ease;
+        letter-spacing: 0.3px;
+    }
+    
+    .register-link a:hover {
+        color: #764ba2;
+        text-decoration: underline;
+    }
+
+    /* デモユーザーのヒント */
+    .demo-hint {
+        background: #f0f4ff;
+        border: 2px solid #667eea;
+        border-radius: 12px;
+        padding: 16px;
+        margin-top: 28px;
+        text-align: center;
+        font-size: 14px;
+        color: #667eea;
+        font-weight: 500;
+    }
+
+    .demo-hint strong {
+        font-weight: 700;
+    }
+
+    /* レスポンシブ */
+    @media (min-width: 768px) {
+        .login-container {
+            padding: 60px 50px;
+            max-width: 550px;
+        }
+        
+        .login-container h1 {
+            font-size: 42px;
+            margin-bottom: 45px;
+        }
+
+        .form-group {
+            margin-bottom: 32px;
+        }
+
+        .form-group label {
+            font-size: 17px;
+            margin-bottom: 12px;
+        }
+
+        .form-group input[type="text"],
+        .form-group input[type="password"] {
+            padding: 18px 20px;
+            font-size: 17px;
+        }
+
+        .form-group button {
+            padding: 20px;
+            font-size: 19px;
+        }
+
+        .register-link {
+            font-size: 17px;
+            margin-top: 36px;
+            padding-top: 32px;
+        }
+
+        .demo-hint {
+            font-size: 15px;
+            margin-top: 32px;
+            padding: 18px;
+        }
+    }
+
+    /* ダークモード対応 */
+    @media (prefers-color-scheme: dark) {
+        body {
+            background: linear-gradient(135deg, #2d3561 0%, #1a1f3a 100%);
+        }
+
+        .login-container {
+            background: #1e1e2e;
+            color: #e0e0e0;
+        }
+
+        .login-container h1 {
+            color: #ffffff;
+        }
+
+        .form-group label {
+            color: #e0e0e0;
+        }
+
+        .form-group input[type="text"],
+        .form-group input[type="password"] {
+            background: #2a2a3e;
+            border-color: #404050;
+            color: #ffffff;
+        }
+
+        .form-group input:focus {
+            border-color: #667eea;
+            background: #333349;
+        }
+
+        .register-link {
+            border-top-color: #404050;
+            color: #b0b0b0;
+        }
+
+        .register-link p {
+            color: #b0b0b0;
+        }
+
+        .demo-hint {
+            background: rgba(102, 126, 234, 0.1);
+            border-color: #667eea;
+            color: #667eea;
+        }
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="login-container">
+    <h1>ログイン</h1>
+    
+    <form method="post">
+        <div class="form-group">
+            <label for="username">ユーザー名</label>
+            <input 
+                type="text" 
+                id="username" 
+                name="username" 
+                placeholder="ユーザー名を入力" 
+                required 
+                autofocus
+            >
+        </div>
+        <div class="form-group">
+            <label for="password">パスワード</label>
+            <input 
+                type="password" 
+                id="password" 
+                name="password" 
+                placeholder="パスワードを入力" 
+                required
+            >
+        </div>
+        <div class="form-group">
+            <button type="submit">ログイン</button>
+        </div>
+    </form>
+
+ 
+    
+    <div class="register-link">
+        <p>アカウントをお持ちでない方は</p>
+        <a href="{{ url_for('auth.register') }}">→ 新規登録はこちらから</a>
+    </div>
+</div>
+{% endblock %}

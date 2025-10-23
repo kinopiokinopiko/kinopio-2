@@ -1,0 +1,968 @@
+{% extends "base.html" %}
+
+{% block title %}資産ダッシュボード{% endblock %}
+
+{% block extra_styles %}
+<style>
+    .header-bar {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 24px;
+        padding: 12px 0;
+        gap: 12px;
+    }
+    
+    .header-title {
+        font-size: 20px;
+        font-weight: 700;
+        color: #333;
+        flex: 1;
+        text-align: center;
+        letter-spacing: -0.5px;
+    }
+    
+    .icon-btn {
+        background: none;
+        border: none;
+        cursor: pointer;
+        padding: 8px;
+        color: #333;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        transition: all 0.2s ease;
+    }
+
+    .icon-btn:hover {
+        opacity: 0.7;
+    }
+    
+    .refresh-icon {
+        width: 24px;
+        height: 24px;
+        transition: transform 0.3s ease;
+    }
+    
+    .icon-btn:active .refresh-icon {
+        animation: rotate 0.6s ease-in-out;
+    }
+    
+    @keyframes rotate {
+        from { transform: rotate(0deg); }
+        to { transform: rotate(360deg); }
+    }
+
+    .summary-grid {
+        display: grid;
+        grid-template-columns: 1fr;
+        gap: 24px;
+        margin-bottom: 24px;
+    }
+
+    @media (min-width: 992px) {
+        .summary-grid {
+            grid-template-columns: 1fr 1fr;
+            align-items: stretch;
+        }
+    }
+    
+    .total-card {
+        background: white;
+        border-radius: 16px;
+        padding: 28px;
+        text-align: center;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+        border: 1px solid #f0f0f0;
+    }
+    
+    .total-label {
+        font-size: 15px;
+        color: #999;
+        margin-bottom: 12px;
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+    }
+    
+    .total-amount {
+        font-size: 44px;
+        font-weight: 700;
+        color: #333;
+        margin-bottom: 16px;
+        letter-spacing: -1px;
+    }
+    
+    .total-info-section {
+        font-size: 18px;
+        font-weight: 700;
+        padding: 12px 20px;
+        background: #f8f9fa;
+        border-radius: 12px;
+        display: inline-block;
+        margin: 0 auto;
+        margin-bottom: 16px;
+    }
+
+    .profit-percentage {
+        font-size: 15px;
+        opacity: 0.8;
+        margin-left: 8px;
+        font-weight: 600;
+    }
+
+    .profit-plus { color: #dc3545; }
+    .profit-minus { color: #28a745; }
+
+    .day-change-section {
+        margin-top: 16px;
+        padding-top: 16px;
+        border-top: 1px solid #e0e0e0;
+        font-size: 14px;
+    }
+
+    .day-change-label {
+        color: #999;
+        margin-bottom: 8px;
+        font-weight: 600;
+        font-size: 12px;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+    }
+
+    .day-change-value {
+        font-size: 16px;
+        font-weight: 700;
+    }
+
+    .day-change-percentage {
+        font-size: 13px;
+        margin-left: 8px;
+        opacity: 0.8;
+        font-weight: 600;
+    }
+    
+    .asset-grid {
+        display: grid;
+        grid-template-columns: repeat(2, 1fr);
+        gap: 16px;
+        margin-bottom: 24px;
+    }
+    
+    .asset-card {
+        background: white;
+        border-radius: 16px;
+        padding: 20px;
+        cursor: pointer;
+        transition: all 0.2s ease;
+        text-decoration: none;
+        color: inherit;
+        display: block;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+        border: 1px solid #f0f0f0;
+        text-align: center;
+    }
+    
+    .asset-card:hover {
+        box-shadow: 0 4px 16px rgba(0,0,0,0.12);
+        transform: translateY(-2px);
+    }
+    
+    .asset-card:active {
+        transform: scale(0.98);
+    }
+    
+    .card-icon {
+        width: 40px;
+        height: 40px;
+        border-radius: 12px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        margin: 0 auto 12px;
+        font-size: 20px;
+    }
+    
+    .card-name {
+        font-size: 16px;
+        color: #666;
+        margin-bottom: 4px;
+        font-weight: 700;
+    }
+    
+    .card-amount {
+        font-size: 26px;
+        font-weight: 700;
+        color: #333;
+        letter-spacing: -0.5px;
+        margin-bottom: 12px;
+    }
+    
+    .card-detail {
+        display: none;
+    }
+    
+    .card-profit-wrapper {
+        display: flex;
+        justify-content: center;
+        gap: 16px;
+        margin-top: 12px;
+        font-size: 14px;
+    }
+    
+    .card-profit-item {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 4px;
+        flex: 1;
+    }
+    
+    .card-profit-label {
+        font-size: 12px;
+        color: #999;
+        font-weight: 600;
+        text-transform: uppercase;
+        letter-spacing: 0.3px;
+    }
+    
+    .card-profit-value {
+        font-size: 15px;
+        font-weight: 700;
+    }
+
+    .card-profit-percentage {
+        font-size: 12px;
+        opacity: 0.8;
+        font-weight: 600;
+    }
+
+    .text-red { color: #dc3545; }
+    .text-green { color: #28a745; }
+
+    .chart-container-with-tabs {
+        background: white;
+        border-radius: 16px;
+        padding: 20px;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+        height: 450px;
+        margin-bottom: 24px;
+        display: flex;
+        flex-direction: column;
+        border: 1px solid #f0f0f0;
+    }
+
+    .tab-nav {
+        display: flex;
+        border-bottom: 2px solid #f0f0f0;
+        flex-shrink: 0;
+        margin-bottom: 12px;
+        overflow-x: auto;
+        white-space: nowrap;
+        -webkit-overflow-scrolling: touch;
+    }
+    
+    .tab-btn {
+        padding: 12px 16px;
+        cursor: pointer;
+        background: none;
+        border: none;
+        font-size: 14px;
+        color: #999;
+        border-bottom: 3px solid transparent;
+        transition: all 0.2s ease;
+        font-weight: 700;
+        letter-spacing: 0.3px;
+        flex-shrink: 0;
+        white-space: nowrap;
+    }
+    
+    .tab-btn.active {
+        color: #333;
+        border-bottom-color: #007bff;
+    }
+
+    .tab-btn:hover:not(.active) {
+        color: #666;
+    }
+    
+    .tab-content-wrapper {
+        flex-grow: 1;
+        position: relative;
+        padding-top: 12px;
+    }
+    
+    .tab-content {
+        display: none;
+        width: 100%;
+        height: 100%;
+        position: absolute;
+        top: 0;
+        left: 0;
+        padding-top: 12px;
+        box-sizing: border-box;
+        flex-direction: column;
+    }
+    
+    .tab-content.active {
+        display: flex;
+    }
+    
+    .legend-controls {
+        display: flex;
+        flex-wrap: wrap;
+        justify-content: center;
+        gap: 12px 16px;
+        margin-bottom: 12px;
+        padding: 0 8px;
+        flex-shrink: 0;
+        overflow-x: auto;
+        -webkit-overflow-scrolling: touch;
+    }
+    
+    .legend-controls .legend-item {
+        display: flex;
+        align-items: center;
+        font-size: 12px;
+        cursor: pointer;
+        user-select: none;
+        font-weight: 600;
+        white-space: nowrap;
+        flex-shrink: 0;
+    }
+    
+    .legend-controls input[type="checkbox"] {
+        display: none;
+    }
+    
+    .legend-color-box {
+        width: 12px;
+        height: 12px;
+        margin-right: 6px;
+        border-radius: 2px;
+        transition: opacity 0.2s ease;
+        flex-shrink: 0;
+    }
+
+    .chart-canvas-container {
+        flex-grow: 1;
+        position: relative;
+    }
+    
+    .chart-canvas-container canvas {
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+    }
+
+    @media (min-width: 768px) {
+        .asset-grid {
+            grid-template-columns: repeat(3, 1fr);
+        }
+        
+        .tab-btn {
+            padding: 12px 20px;
+            font-size: 15px;
+        }
+        
+        .legend-controls .legend-item {
+            font-size: 13px;
+        }
+    }
+    
+    @media (min-width: 1024px) {
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+        .asset-grid {
+            grid-template-columns: repeat(4, 1fr);
+        }
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<!-- ヘッダーバー -->
+<div class="header-bar">
+    <form method="post" action="{{ url_for('assets.update_all_prices') }}" style="margin: 0;">
+        <button type="submit" class="icon-btn" onclick="return confirm('全ての価格を手動で更新しますか?時間がかかる場合があります。')" title="価格更新">
+            <svg class="refresh-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <polyline points="23 4 23 10 17 10"></polyline>
+                <polyline points="1 20 1 14 7 14"></polyline>
+                <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"></path>
+            </svg>
+        </button>
+    </form>
+    <div class="header-title">{{ user_name }}さんへようこそ</div>
+    <a href="{{ url_for('auth.logout') }}" class="icon-btn" title="ログアウト">
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path>
+            <polyline points="16 17 21 12 16 7"></polyline>
+            <line x1="21" y1="12" x2="9" y2="12"></line>
+        </svg>
+    </a>
+</div>
+
+<!-- 総資産カード -->
+<div class="total-card" style="margin-bottom: 24px;">
+    <div class="total-label">総資産</div>
+    <div class="total-amount">¥{{ "{:,.0f}".format(total_assets) }}</div>
+    
+    <!-- 損益情報 -->
+    <div class="total-info-section {% if total_profit >= 0 %}profit-plus{% else %}profit-minus{% endif %}">
+        {% if total_profit >= 0 %}+{% endif %}¥{{ "{:,.0f}".format(total_profit) }}
+        <span class="profit-percentage">({% if total_profit >= 0 %}+{% endif %}{{ "{:.2f}".format(total_profit_rate) }}%)</span>
+    </div>
+    
+    <!-- 前日比情報 -->
+    <div class="day-change-section">
+        <div class="day-change-label">前日比</div>
+        <span class="day-change-value {% if total_day_change >= 0 %}profit-plus{% else %}profit-minus{% endif %}">
+            {% if total_day_change >= 0 %}+{% endif %}¥{{ "{:,.0f}".format(total_day_change) }}
+            <span class="day-change-percentage">({% if total_day_change >= 0 %}+{% endif %}{{ "{:.2f}".format(total_day_change_rate) }}%)</span>
+        </span>
+    </div>
+</div>
+
+<!-- チャートセクション -->
+<div class="chart-container-with-tabs">
+    <div class="tab-nav">
+        <button class="tab-btn active" onclick="showTab('portfolio', this)">ポートフォリオ</button>
+        <button class="tab-btn" onclick="showTab('line', this)">折れ線グラフ推移</button>
+        <button class="tab-btn" onclick="showTab('bar', this)">棒グラフ推移</button>
+    </div>
+
+    <div class="tab-content-wrapper">
+        <!-- ✅ ポートフォリオ円グラフ -->
+        <div id="portfolio-content" class="tab-content active">
+            <div class="chart-canvas-container">
+                 <canvas id="assetPieChart"></canvas>
+            </div>
+        </div>
+
+        <!-- 折れ線グラフ -->
+        <div id="line-content" class="tab-content">
+            <div class="legend-controls">
+                <label class="legend-item">
+                    <input type="checkbox" id="toggle-all-lines">
+                    <b>全選択</b>
+                </label>
+                <label class="legend-item">
+                    <input type="checkbox" class="line-toggle" data-dataset-index="0" checked>
+                    <span class="legend-color-box" style="background-color: #808080;"></span>総資産
+                </label>
+                <label class="legend-item">
+                    <input type="checkbox" class="line-toggle" data-dataset-index="1">
+                    <span class="legend-color-box" style="background-color: #E63946;"></span>日本株
+                </label>
+                <label class="legend-item">
+                    <input type="checkbox" class="line-toggle" data-dataset-index="2">
+                    <span class="legend-color-box" style="background-color: #457B9D;"></span>米国株
+                </label>
+                <label class="legend-item">
+                    <input type="checkbox" class="line-toggle" data-dataset-index="3">
+                    <span class="legend-color-box" style="background-color: #F4A261;"></span>現金
+                </label>
+                <label class="legend-item">
+                    <input type="checkbox" class="line-toggle" data-dataset-index="4">
+                    <span class="legend-color-box" style="background-color: #E9C46A;"></span>金
+                </label>
+                <label class="legend-item">
+                    <input type="checkbox" class="line-toggle" data-dataset-index="5">
+                    <span class="legend-color-box" style="background-color: #9B5DE5;"></span>暗号資産
+                </label>
+                <label class="legend-item">
+                    <input type="checkbox" class="line-toggle" data-dataset-index="6">
+                    <span class="legend-color-box" style="background-color: #52B788;"></span>投資信託
+                </label>
+                <label class="legend-item">
+                    <input type="checkbox" class="line-toggle" data-dataset-index="7">
+                    <span class="legend-color-box" style="background-color: #F15BB5;"></span>保険
+                </label>
+            </div>
+            <div class="chart-canvas-container">
+                <canvas id="assetLineChart"></canvas>
+            </div>
+        </div>
+
+        <!-- 棒グラフ -->
+        <div id="bar-content" class="tab-content">
+            <div class="legend-controls">
+                <label class="legend-item">
+                    <input type="checkbox" id="toggle-all-bars" checked>
+                    <b>全選択</b>
+                </label>
+                <label class="legend-item">
+                    <input type="checkbox" class="bar-toggle" data-dataset-index="0" checked>
+                    <span class="legend-color-box" style="background-color: #E63946;"></span>日本株
+                </label>
+                <label class="legend-item">
+                    <input type="checkbox" class="bar-toggle" data-dataset-index="1" checked>
+                    <span class="legend-color-box" style="background-color: #457B9D;"></span>米国株
+                </label>
+                <label class="legend-item">
+                    <input type="checkbox" class="bar-toggle" data-dataset-index="2" checked>
+                    <span class="legend-color-box" style="background-color: #F4A261;"></span>現金
+                </label>
+                <label class="legend-item">
+                    <input type="checkbox" class="bar-toggle" data-dataset-index="3" checked>
+                    <span class="legend-color-box" style="background-color: #E9C46A;"></span>金
+                </label>
+                <label class="legend-item">
+                    <input type="checkbox" class="bar-toggle" data-dataset-index="4" checked>
+                    <span class="legend-color-box" style="background-color: #9B5DE5;"></span>暗号資産
+                </label>
+                <label class="legend-item">
+                    <input type="checkbox" class="bar-toggle" data-dataset-index="5" checked>
+                    <span class="legend-color-box" style="background-color: #52B788;"></span>投資信託
+                </label>
+                <label class="legend-item">
+                    <input type="checkbox" class="bar-toggle" data-dataset-index="6" checked>
+                    <span class="legend-color-box" style="background-color: #F15BB5;"></span>保険
+                </label>
+            </div>
+            <div class="chart-canvas-container">
+                <canvas id="assetHistoryChart"></canvas>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- 資産カードグリッド -->
+<div class="asset-grid">
+    <!-- 日本株カード -->
+    <a href="{{ url_for('assets.manage_assets', asset_type='jp_stock') }}" class="asset-card">
+        <div class="card-icon" style="background: #e8f5e9;">🇯🇵</div>
+        <div class="card-name">日本株</div>
+        <div class="card-amount">¥{{ "{:,.0f}".format(jp_total) }}</div>
+        {% set jp_cost = jp_total - jp_profit %}
+        {% set jp_profit_rate = (jp_profit / jp_cost * 100) if jp_cost > 0 else 0 %}
+        <div class="card-profit-wrapper">
+            <div class="card-profit-item">
+                <div class="card-profit-label">損益</div>
+                <div class="card-profit-value {% if jp_profit >= 0 %}profit-plus{% else %}profit-minus{% endif %}">
+                    {% if jp_profit >= 0 %}+{% endif %}¥{{ "{:,.0f}".format(jp_profit) }}
+                </div>
+                <div class="card-profit-percentage {% if jp_profit_rate >= 0 %}profit-plus{% else %}profit-minus{% endif %}">({% if jp_profit >= 0 %}+{% endif %}{{ "{:.2f}".format(jp_profit_rate) }}%)</div>
+            </div>
+            <div class="card-profit-item">
+                <div class="card-profit-label">前日比</div>
+                <div class="card-profit-value {% if jp_day_change >= 0 %}profit-plus{% else %}profit-minus{% endif %}">
+                    {% if jp_day_change >= 0 %}+{% endif %}¥{{ "{:,.0f}".format(jp_day_change) }}
+                </div>
+                <div class="card-profit-percentage {% if jp_day_change_rate >= 0 %}profit-plus{% else %}profit-minus{% endif %}">({% if jp_day_change >= 0 %}+{% endif %}{{ "{:.2f}".format(jp_day_change_rate) }}%)</div>
+            </div>
+        </div>
+    </a>
+    
+    <!-- 米国株カード -->
+    <a href="{{ url_for('assets.manage_assets', asset_type='us_stock') }}" class="asset-card">
+        <div class="card-icon" style="background: #e3f2fd;">🇺🇸</div>
+        <div class="card-name">米国株</div>
+        <div class="card-amount">¥{{ "{:,.0f}".format(us_total_jpy) }}</div>
+        {% set us_cost_jpy = us_total_jpy - us_profit_jpy %}
+        {% set us_profit_rate = (us_profit_jpy / us_cost_jpy * 100) if us_cost_jpy > 0 else 0 %}
+        <div class="card-profit-wrapper">
+            <div class="card-profit-item">
+                <div class="card-profit-label">損益</div>
+                <div class="card-profit-value {% if us_profit_jpy >= 0 %}profit-plus{% else %}profit-minus{% endif %}">
+                    {% if us_profit_jpy >= 0 %}+{% endif %}¥{{ "{:,.0f}".format(us_profit_jpy) }}
+                </div>
+                <div class="card-profit-percentage {% if us_profit_rate >= 0 %}profit-plus{% else %}profit-minus{% endif %}">({% if us_profit_jpy >= 0 %}+{% endif %}{{ "{:.2f}".format(us_profit_rate) }}%)</div>
+            </div>
+            <div class="card-profit-item">
+                <div class="card-profit-label">前日比</div>
+                <div class="card-profit-value {% if us_day_change >= 0 %}profit-plus{% else %}profit-minus{% endif %}">
+                    {% if us_day_change >= 0 %}+{% endif %}¥{{ "{:,.0f}".format(us_day_change) }}
+                </div>
+                <div class="card-profit-percentage {% if us_day_change_rate >= 0 %}profit-plus{% else %}profit-minus{% endif %}">({% if us_day_change >= 0 %}+{% endif %}{{ "{:.2f}".format(us_day_change_rate) }}%)</div>
+            </div>
+        </div>
+    </a>
+    
+    <!-- 現金カード -->
+    <a href="{{ url_for('assets.manage_assets', asset_type='cash') }}" class="asset-card">
+        <div class="card-icon" style="background: #fff3e0;">💰</div>
+        <div class="card-name">現金</div>
+        <div class="card-amount">¥{{ "{:,.0f}".format(cash_total) }}</div>
+    </a>
+    
+    <!-- 金カード -->
+    <a href="{{ url_for('assets.manage_assets', asset_type='gold') }}" class="asset-card">
+        <div class="card-icon" style="background: #fffde7;">🥇</div>
+        <div class="card-name">金(Gold)</div>
+        <div class="card-amount">¥{{ "{:,.0f}".format(gold_total) }}</div>
+        {% set gold_cost = gold_total - gold_profit %}
+        {% set gold_profit_rate = (gold_profit / gold_cost * 100) if gold_cost > 0 else 0 %}
+        <div class="card-profit-wrapper">
+            <div class="card-profit-item">
+                <div class="card-profit-label">損益</div>
+                <div class="card-profit-value {% if gold_profit >= 0 %}profit-plus{% else %}profit-minus{% endif %}">
+                    {% if gold_profit >= 0 %}+{% endif %}¥{{ "{:,.0f}".format(gold_profit) }}
+                </div>
+                <div class="card-profit-percentage {% if gold_profit_rate >= 0 %}profit-plus{% else %}profit-minus{% endif %}">({% if gold_profit >= 0 %}+{% endif %}{{ "{:.2f}".format(gold_profit_rate) }}%)</div>
+            </div>
+            <div class="card-profit-item">
+                <div class="card-profit-label">前日比</div>
+                <div class="card-profit-value {% if gold_day_change >= 0 %}profit-plus{% else %}profit-minus{% endif %}">
+                    {% if gold_day_change >= 0 %}+{% endif %}¥{{ "{:,.0f}".format(gold_day_change) }}
+                </div>
+                <div class="card-profit-percentage {% if gold_day_change_rate >= 0 %}profit-plus{% else %}profit-minus{% endif %}">({% if gold_day_change >= 0 %}+{% endif %}{{ "{:.2f}".format(gold_day_change_rate) }}%)</div>
+            </div>
+        </div>
+    </a>
+    
+    <!-- 暗号資産カード -->
+    <a href="{{ url_for('assets.manage_assets', asset_type='crypto') }}" class="asset-card">
+        <div class="card-icon" style="background: #f3e5f5;">₿</div>
+        <div class="card-name">暗号資産</div>
+        <div class="card-amount">¥{{ "{:,.0f}".format(crypto_total) }}</div>
+        {% set crypto_cost = crypto_total - crypto_profit %}
+        {% set crypto_profit_rate = (crypto_profit / crypto_cost * 100) if crypto_cost > 0 else 0 %}
+        <div class="card-profit-wrapper">
+            <div class="card-profit-item">
+                <div class="card-profit-label">損益</div>
+                <div class="card-profit-value {% if crypto_profit >= 0 %}profit-plus{% else %}profit-minus{% endif %}">
+                    {% if crypto_profit >= 0 %}+{% endif %}¥{{ "{:,.0f}".format(crypto_profit) }}
+                </div>
+                <div class="card-profit-percentage {% if crypto_profit_rate >= 0 %}profit-plus{% else %}profit-minus{% endif %}">({% if crypto_profit >= 0 %}+{% endif %}{{ "{:.2f}".format(crypto_profit_rate) }}%)</div>
+            </div>
+            <div class="card-profit-item">
+                <div class="card-profit-label">前日比</div>
+                <div class="card-profit-value {% if crypto_day_change >= 0 %}profit-plus{% else %}profit-minus{% endif %}">
+                    {% if crypto_day_change >= 0 %}+{% endif %}¥{{ "{:,.0f}".format(crypto_day_change) }}
+                </div>
+                <div class="card-profit-percentage {% if crypto_day_change_rate >= 0 %}profit-plus{% else %}profit-minus{% endif %}">({% if crypto_day_change >= 0 %}+{% endif %}{{ "{:.2f}".format(crypto_day_change_rate) }}%)</div>
+            </div>
+        </div>
+    </a>
+
+    <!-- 投資信託カード -->
+    <a href="{{ url_for('assets.manage_assets', asset_type='investment_trust') }}" class="asset-card">
+        <div class="card-icon" style="background: #e0f2f1;">📈</div>
+        <div class="card-name">投資信託</div>
+        <div class="card-amount">¥{{ "{:,.0f}".format(investment_trust_total) }}</div>
+        {% set it_cost = investment_trust_total - investment_trust_profit %}
+        {% set it_profit_rate = (investment_trust_profit / it_cost * 100) if it_cost > 0 else 0 %}
+        <div class="card-profit-wrapper">
+            <div class="card-profit-item">
+                <div class="card-profit-label">損益</div>
+                <div class="card-profit-value {% if investment_trust_profit >= 0 %}profit-plus{% else %}profit-minus{% endif %}">
+                    {% if investment_trust_profit >= 0 %}+{% endif %}¥{{ "{:,.0f}".format(investment_trust_profit) }}
+                </div>
+                <div class="card-profit-percentage {% if it_profit_rate >= 0 %}profit-plus{% else %}profit-minus{% endif %}">({% if investment_trust_profit >= 0 %}+{% endif %}{{ "{:.2f}".format(it_profit_rate) }}%)</div>
+            </div>
+            <div class="card-profit-item">
+                <div class="card-profit-label">前日比</div>
+                <div class="card-profit-value {% if investment_trust_day_change >= 0 %}profit-plus{% else %}profit-minus{% endif %}">
+                    {% if investment_trust_day_change >= 0 %}+{% endif %}¥{{ "{:,.0f}".format(investment_trust_day_change) }}
+                </div>
+                <div class="card-profit-percentage {% if investment_trust_day_change_rate >= 0 %}profit-plus{% else %}profit-minus{% endif %}">({% if investment_trust_day_change >= 0 %}+{% endif %}{{ "{:.2f}".format(investment_trust_day_change_rate) }}%)</div>
+            </div>
+        </div>
+    </a>
+
+    <!-- 保険カード -->
+    <a href="{{ url_for('assets.manage_assets', asset_type='insurance') }}" class="asset-card">
+        <div class="card-icon" style="background: #e0f7fa;">🛡️</div>
+        <div class="card-name">保険</div>
+        <div class="card-amount">¥{{ "{:,.0f}".format(insurance_total) }}</div>
+        {% set insurance_cost = insurance_total - insurance_profit %}
+        {% set insurance_profit_rate = (insurance_profit / insurance_cost * 100) if insurance_cost > 0 else 0 %}
+        <div class="card-profit-wrapper">
+            <div class="card-profit-item">
+                <div class="card-profit-label">損益</div>
+                <div class="card-profit-value {% if insurance_profit >= 0 %}profit-plus{% else %}profit-minus{% endif %}">
+                    {% if insurance_profit >= 0 %}+{% endif %}¥{{ "{:,.0f}".format(insurance_profit) }}
+                </div>
+                <div class="card-profit-percentage {% if insurance_profit_rate >= 0 %}profit-plus{% else %}profit-minus{% endif %}">({% if insurance_profit >= 0 %}+{% endif %}{{ "{:.2f}".format(insurance_profit_rate) }}%)</div>
+            </div>
+            <div class="card-profit-item">
+                <div class="card-profit-label">前日比</div>
+                <div class="card-profit-value {% if insurance_day_change >= 0 %}profit-plus{% else %}profit-minus{% endif %}">
+                    {% if insurance_day_change >= 0 %}+{% endif %}¥{{ "{:,.0f}".format(insurance_day_change) }}
+                </div>
+                <div class="card-profit-percentage {% if insurance_day_change_rate >= 0 %}profit-plus{% else %}profit-minus{% endif %}">({% if insurance_day_change >= 0 %}+{% endif %}{{ "{:.2f}".format(insurance_day_change_rate) }}%)</div>
+            </div>
+        </div>
+    </a>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js@3.9.1"></script>
+<script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.2.0"></script>
+
+<script>
+function showTab(tabName, clickedButton) {
+    const contents = document.querySelectorAll('.tab-content');
+    contents.forEach(content => {
+        content.classList.remove('active');
+    });
+
+    const buttons = document.querySelectorAll('.tab-btn');
+    buttons.forEach(button => {
+        button.classList.remove('active');
+    });
+
+    const targetContent = document.getElementById(tabName + '-content');
+    if (targetContent) {
+        targetContent.classList.add('active');
+    }
+    
+    if (clickedButton) {
+        clickedButton.classList.add('active');
+    }
+}
+
+Chart.register(ChartDataLabels);
+
+document.addEventListener('DOMContentLoaded', function() {
+    const chartDataJSON = '{{ chart_data | safe }}';
+    const historyDataJSON = '{{ history_data | safe }}';
+    let myLineChart, myBarChart; 
+
+    const assetColors = [
+        '#E63946', '#457B9D', '#F4A261', '#E9C46A', 
+        '#9B5DE5', '#52B788', '#F15BB5'
+    ];
+    const totalAssetColor = '#808080';
+
+    function hexToRgba(hex, alpha) {
+        let r = 0, g = 0, b = 0;
+        if (hex.length == 4) {
+            r = "0x" + hex[1] + hex[1];
+            g = "0x" + hex[2] + hex[2];
+            b = "0x" + hex[3] + hex[3];
+        } else if (hex.length == 7) {
+            r = "0x" + hex.substring(1, 3);
+            g = "0x" + hex.substring(3, 5);
+            b = "0x" + hex.substring(5, 7);
+        }
+        return `rgba(${+r},${+g},${+b},${alpha})`;
+    }
+
+    // ✅ 円グラフ
+    if (chartDataJSON) {
+        try {
+            const chartData = JSON.parse(chartDataJSON);
+            const filteredLabels = [], filteredValues = [], filteredColors = [];
+            chartData.values.forEach((value, index) => {
+                if (value > 0) {
+                    filteredLabels.push(chartData.labels[index]);
+                    filteredValues.push(value);
+                    filteredColors.push(assetColors[index]);
+                }
+            });
+
+            if (filteredValues.length > 0) {
+                const ctxPie = document.getElementById('assetPieChart').getContext('2d');
+                new Chart(ctxPie, {
+                    type: 'pie',
+                    data: {
+                        labels: filteredLabels,
+                        datasets: [{ 
+                            data: filteredValues, 
+                            backgroundColor: filteredColors, 
+                            borderColor: '#fff', 
+                            borderWidth: 2 
+                        }]
+                    },
+                    options: {
+                        responsive: true, 
+                        maintainAspectRatio: false,
+                        plugins: {
+                            legend: { display: false },
+                            title: { display: false },
+                            datalabels: {
+                                formatter: (value, context) => {
+                                    const total = context.chart.data.datasets[0].data.reduce((a, b) => a + b, 0);
+                                    const percentage = (value / total) * 100;
+                                    if (percentage < 3) return '';
+                                    const label = context.chart.data.labels[context.dataIndex];
+                                    return `${percentage.toFixed(1)}%\n${label}`;
+                                },
+                                color: '#fff', 
+                                textAlign: 'center', 
+                                font: { weight: 'bold', size: 13 },
+                                textShadowBlur: 6, 
+                                textShadowColor: 'rgba(0, 0, 0, 0.6)',
+                                offset: 0
+                            },
+                            tooltip: {
+                                callbacks: {
+                                    label: (context) => ` ${context.label}: ${new Intl.NumberFormat('ja-JP', { style: 'currency', currency: 'JPY' }).format(context.parsed)}`
+                                }
+                            }
+                        }
+                    }
+                });
+            }
+        } catch (e) { console.error("Pie chart error:", e); }
+    }
+
+    if (historyDataJSON) {
+        try {
+            const historyData = JSON.parse(historyDataJSON);
+            if (historyData.dates && historyData.dates.length > 0) {
+                const ctxLine = document.getElementById('assetLineChart').getContext('2d');
+                const lineDatasetConfigs = [
+                    { label: '総資産', data: historyData.total, color: totalAssetColor, hidden: false },
+                    { label: '日本株', data: historyData.jp_stock, color: assetColors[0], hidden: true },
+                    { label: '米国株', data: historyData.us_stock, color: assetColors[1], hidden: true },
+                    { label: '現金', data: historyData.cash, color: assetColors[2], hidden: true },
+                    { label: '金', data: historyData.gold, color: assetColors[3], hidden: true },
+                    { label: '暗号資産', data: historyData.crypto, color: assetColors[4], hidden: true },
+                    { label: '投資信託', data: historyData.investment_trust, color: assetColors[5], hidden: true },
+                    { label: '保険', data: historyData.insurance, color: assetColors[6], hidden: true }
+                ];
+                const lineDatasets = lineDatasetConfigs.map(config => ({
+                    label: config.label, data: config.data, borderColor: config.color,
+                    backgroundColor: hexToRgba(config.color, 0.2), fill: true, tension: 0.4,
+                    borderWidth: 2, pointRadius: 1, pointHoverRadius: 5, hidden: config.hidden
+                }));
+                myLineChart = new Chart(ctxLine, {
+                    type: 'line',
+                    data: { labels: historyData.dates, datasets: lineDatasets },
+                    options: {
+                        responsive: true, maintainAspectRatio: false,
+                        plugins: { 
+                            legend: { display: false }, 
+                            title: { display: false },
+                            datalabels: { display: false },
+                            tooltip: {
+                                mode: 'index', intersect: false,
+                                callbacks: {
+                                    label: (context) => ` ${context.dataset.label}: ${new Intl.NumberFormat('ja-JP', { style: 'currency', currency: 'JPY' }).format(context.parsed.y)}`
+                                }
+                            }
+                        },
+                        scales: {
+                            y: {
+                                beginAtZero: false,
+                                ticks: {
+                                    callback: (value) => {
+                                        if (value >= 1e8) return `¥${(value/1e8).toFixed(1)}億`;
+                                        if (value >= 1e4) return `¥${(value/1e4).toFixed(0)}万`;
+                                        return `¥${value.toLocaleString()}`;
+                                    }
+                                }
+                            }
+                        }
+                    }
+                });
+
+                const ctxHistory = document.getElementById('assetHistoryChart').getContext('2d');
+                const barThicknessOptions = {
+                    barPercentage: 0.2,
+                    categoryPercentage: 0.5
+                };
+                myBarChart = new Chart(ctxHistory, {
+                    type: 'bar',
+                    data: {
+                        labels: historyData.dates,
+                        datasets: [
+                            { label: '日本株', data: historyData.jp_stock, backgroundColor: assetColors[0], ...barThicknessOptions },
+                            { label: '米国株', data: historyData.us_stock, backgroundColor: assetColors[1], ...barThicknessOptions },
+                            { label: '現金', data: historyData.cash, backgroundColor: assetColors[2], ...barThicknessOptions },
+                            { label: '金', data: historyData.gold, backgroundColor: assetColors[3], ...barThicknessOptions },
+                            { label: '暗号資産', data: historyData.crypto, backgroundColor: assetColors[4], ...barThicknessOptions },
+                            { label: '投資信託', data: historyData.investment_trust, backgroundColor: assetColors[5], ...barThicknessOptions },
+                            { label: '保険', data: historyData.insurance, backgroundColor: assetColors[6], ...barThicknessOptions }
+                        ]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        plugins: {
+                            title: { display: false },
+                            tooltip: { mode: 'index', intersect: false },
+                            legend: { display: false },
+                            datalabels: { display: false }
+                        },
+                        scales: {
+                            x: { stacked: true },
+                            y: {
+                                stacked: true,
+                                ticks: {
+                                    callback: function(value) {
+                                        if (value >= 100000000) return '¥' + (value / 100000000).toFixed(1) + '億';
+                                        if (value >= 10000) return '¥' + (value / 10000).toLocaleString() + '万';
+                                        return '¥' + value.toLocaleString();
+                                    }
+                                }
+                            }
+                        }
+                    }
+                });
+
+                const lineToggles = document.querySelectorAll('.line-toggle');
+                const updateLineVisuals = () => {
+                    lineToggles.forEach(toggle => {
+                        const colorBox = toggle.nextElementSibling;
+                        if (colorBox) colorBox.style.opacity = toggle.checked ? '1.0' : '0.4';
+                    });
+                };
+                document.getElementById('toggle-all-lines').addEventListener('change', (e) => {
+                    const isChecked = e.target.checked;
+                    lineToggles.forEach(toggle => {
+                        toggle.checked = isChecked;
+                        const index = toggle.getAttribute('data-dataset-index');
+                        myLineChart.getDatasetMeta(parseInt(index)).hidden = !isChecked;
+                    });
+                    myLineChart.update();
+                    updateLineVisuals();
+                });
+                lineToggles.forEach(toggle => {
+                    toggle.addEventListener('change', () => {
+                        const index = toggle.getAttribute('data-dataset-index');
+                        myLineChart.getDatasetMeta(parseInt(index)).hidden = !toggle.checked;
+                        myLineChart.update();
+                        updateLineVisuals();
+                    });
+                });
+                updateLineVisuals();
+
+                const barToggles = document.querySelectorAll('.bar-toggle');
+                const updateBarVisuals = () => {
+                    barToggles.forEach(toggle => {
+                        const colorBox = toggle.nextElementSibling;
+                        if (colorBox) colorBox.style.opacity = toggle.checked ? '1.0' : '0.4';
+                    });
+                };
+                document.getElementById('toggle-all-bars').addEventListener('change', (e) => {
+                    const isChecked = e.target.checked;
+                    barToggles.forEach(toggle => {
+                        toggle.checked = isChecked;
+                        const index = toggle.getAttribute('data-dataset-index');
+                        myBarChart.getDatasetMeta(parseInt(index)).hidden = !isChecked;
+                    });
+                    myBarChart.update();
+                    updateBarVisuals();
+                });
+                barToggles.forEach(toggle => {
+                    toggle.addEventListener('change', () => {
+                        const index = toggle.getAttribute('data-dataset-index');
+                        myBarChart.getDatasetMeta(parseInt(index)).hidden = !toggle.checked;
+                        myBarChart.update();
+                        updateBarVisuals();
+                    });
+                });
+                updateBarVisuals();
+            }
+        } catch (e) { console.error("History chart error:", e); }
+    }
+    
+    const portfolioButton = document.querySelector('.tab-nav .tab-btn.active');
+    if (portfolioButton) {
+        showTab('portfolio', portfolioButton);
+    }
+});
+</script>
+{% endblock %}
