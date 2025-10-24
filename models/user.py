@@ -40,11 +40,16 @@ class User:
     def check_password(self, password):
         """入力されたパスワードが正しいか確認"""
         if not password or not self.password_hash:
+            logger.error(f"❌ Password check failed: password={bool(password)}, hash={bool(self.password_hash)}")
             return False
         try:
-            return check_password_hash(self.password_hash, password)
+            logger.info(f"🔑 Checking password for user {self.username}")
+            logger.info(f"🔑 Hash preview: {self.password_hash[:50]}...")
+            result = check_password_hash(self.password_hash, password)
+            logger.info(f"🔑 Password check result: {result}")
+            return result
         except Exception as e:
-            logger.error(f"Error checking password: {e}")
+            logger.error(f"❌ Error checking password: {e}", exc_info=True)
             return False
     
     def to_dict(self):
@@ -65,21 +70,30 @@ class User:
 def row_to_dict(row):
     """SQLite Row または PostgreSQL の dict-like オブジェクトを dict に変換"""
     if row is None:
+        logger.error("❌ row_to_dict: row is None")
         return None
     
     try:
-        # PostgreSQL の RealDictCursor の場合
+        logger.info(f"🔍 row_to_dict: row type = {type(row)}")
+        
+        # PostgreSQL の RealDictCursor の場合（既に辞書型）
         if isinstance(row, dict):
+            logger.info(f"✅ row_to_dict: Already a dict with keys: {list(row.keys())}")
             return row
         
-        # SQLite の Row オブジェクトの場合
+        # SQLite の Row オブジェクトまたは psycopg2 の tuple-like オブジェクト
         if hasattr(row, 'keys'):
-            return dict(zip(row.keys(), row))
+            result = dict(zip(row.keys(), row))
+            logger.info(f"✅ row_to_dict: Converted to dict with keys: {list(result.keys())}")
+            return result
         
         # その他のタプル形式
-        return dict(row) if hasattr(row, '__iter__') else row
+        result = dict(row) if hasattr(row, '__iter__') else row
+        logger.info(f"✅ row_to_dict: Fallback conversion, type: {type(result)}")
+        return result
+        
     except Exception as e:
-        logger.error(f"Error converting row to dict: {e}, row type: {type(row)}")
+        logger.error(f"❌ Error converting row to dict: {e}, row type: {type(row)}", exc_info=True)
         return None
 
 # ================================================================================
@@ -92,6 +106,7 @@ class UserService:
     def __init__(self, db_manager, use_postgres=False):
         self.db_manager = db_manager
         self.use_postgres = use_postgres
+        logger.info(f"🔧 UserService initialized: use_postgres={use_postgres}")
     
     def _get_user_columns(self):
         """使用可能なカラムを取得"""
@@ -127,6 +142,7 @@ class UserService:
         """ユーザー名でユーザーを取得"""
         try:
             logger.info(f"🔍 Searching for user: {username}")
+            logger.info(f"🔍 Database mode: {'PostgreSQL' if self.use_postgres else 'SQLite'}")
             
             with self.db_manager.get_db() as conn:
                 c = conn.cursor()
@@ -139,7 +155,14 @@ class UserService:
                 row = c.fetchone()
                 
                 if row is None:
-                    logger.info(f"❌ User not found: {username}")
+                    logger.warning(f"❌ User not found in database: {username}")
+                    # デバッグ: 全ユーザーを表示
+                    if self.use_postgres:
+                        c.execute('SELECT username FROM users')
+                    else:
+                        c.execute('SELECT username FROM users')
+                    all_users = [r[0] if isinstance(r, tuple) else r['username'] for r in c.fetchall()]
+                    logger.info(f"📋 Available users in DB: {all_users}")
                     return None
                 
                 logger.info(f"✅ Row fetched for {username}, type: {type(row)}")
@@ -149,13 +172,19 @@ class UserService:
                     logger.error(f"❌ Failed to convert row to dict for user: {username}")
                     return None
                 
-                logger.info(f"✅ User found: {username}, ID: {row_dict.get('id')}")
+                logger.info(f"✅ User dict created with keys: {list(row_dict.keys())}")
+                logger.info(f"✅ User ID: {row_dict.get('id')}, Username: {row_dict.get('username')}")
+                logger.info(f"🔑 Password hash preview: {row_dict.get('password_hash', '')[:50]}...")
                 
-                return User(
+                user = User(
                     row_dict['id'],
                     row_dict['username'],
                     row_dict['password_hash']
                 )
+                
+                logger.info(f"✅ User object created: {user}")
+                return user
+                
         except Exception as e:
             logger.error(f"❌ Error getting user by username: {e}", exc_info=True)
             return None
@@ -180,7 +209,7 @@ class UserService:
             
             # パスワードをハッシュ化
             password_hash = generate_password_hash(password)
-            logger.info(f"🔐 Password hashed for user: {username}")
+            logger.info(f"🔐 Password hashed for user: {username}, hash preview: {password_hash[:50]}...")
             
             # DBに保存
             with self.db_manager.get_db() as conn:
@@ -212,7 +241,7 @@ class UserService:
     def verify_user(self, username, password):
         """ユーザーの認証"""
         try:
-            logger.info(f"🔐 Verifying user: {username}")
+            logger.info(f"🔐 === Starting verification for user: {username} ===")
             
             user = self.get_user_by_username(username)
             
@@ -220,11 +249,13 @@ class UserService:
                 logger.warning(f"❌ Verification failed: user not found - {username}")
                 return False
             
-            logger.info(f"✅ User found in verify_user: {username}")
+            logger.info(f"✅ User object retrieved: {user}")
+            logger.info(f"🔑 User has password_hash: {bool(user.password_hash)}")
             
             # パスワードチェック
             is_valid = user.check_password(password)
-            logger.info(f"🔑 Password verification: {'✅ Valid' if is_valid else '❌ Invalid'} for user {username}")
+            logger.info(f"🔑 Final verification result: {'✅ VALID' if is_valid else '❌ INVALID'} for user {username}")
+            logger.info(f"🔐 === Verification complete for user: {username} ===")
             
             return is_valid
         except Exception as e:
