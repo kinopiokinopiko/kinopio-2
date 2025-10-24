@@ -3,10 +3,6 @@ from contextlib import contextmanager
 from config import get_config
 from utils import logger
 
-# ================================================================================
-# 📊 データベース管理
-# ================================================================================
-
 try:
     import psycopg2
     from psycopg2.extras import RealDictCursor
@@ -14,6 +10,7 @@ try:
     POSTGRES_AVAILABLE = True
 except ImportError:
     POSTGRES_AVAILABLE = False
+    logger.warning("⚠️ psycopg2 not available, using SQLite")
 
 class DatabaseManager:
     """データベース接続を管理"""
@@ -22,41 +19,74 @@ class DatabaseManager:
         self.config = config or get_config()
         self.pool = None
         self.use_postgres = self.config.USE_POSTGRES and POSTGRES_AVAILABLE
-        self._init_pool()
+        
+        logger.info(f"🔧 DatabaseManager initializing...")
+        logger.info(f"📊 USE_POSTGRES: {self.use_postgres}")
+        logger.info(f"📊 DATABASE_URL: {self.config.DATABASE_URL[:50] if self.config.DATABASE_URL else 'None'}...")
+        
+        if self.use_postgres:
+            self._init_pool()
     
     def _init_pool(self):
         """コネクションプール初期化"""
         if self.use_postgres and self.config.DATABASE_URL:
             try:
-                self.pool = pg_pool.SimpleConnectionPool(2, 10, self.config.DATABASE_URL)
-                logger.info("✅ Database connection pool initialized (PostgreSQL)")
+                logger.info("🔌 Creating PostgreSQL connection pool...")
+                self.pool = pg_pool.SimpleConnectionPool(
+                    1,  # minconn
+                    10, # maxconn
+                    self.config.DATABASE_URL
+                )
+                logger.info("✅ PostgreSQL connection pool initialized")
             except Exception as e:
-                logger.error(f"❌ Failed to create connection pool: {e}")
+                logger.error(f"❌ Failed to create connection pool: {e}", exc_info=True)
                 self.use_postgres = False
+                logger.info("⚠️ Falling back to SQLite")
     
     @contextmanager
     def get_db(self):
         """データベース接続を取得"""
         if self.use_postgres:
-            if self.pool:
-                conn = self.pool.getconn()
-                try:
-                    conn.set_session(autocommit=False)
-                    yield conn
-                finally:
-                    self.pool.putconn(conn)
-            else:
+            if not self.pool:
                 raise RuntimeError("Database pool not initialized")
+            
+            conn = None
+            try:
+                conn = self.pool.getconn()
+                conn.set_session(autocommit=False)
+                
+                # ✅ RealDictCursor を使用
+                original_cursor_factory = conn.cursor_factory
+                conn.cursor_factory = RealDictCursor
+                
+                yield conn
+                
+                # 元に戻す
+                conn.cursor_factory = original_cursor_factory
+            except Exception as e:
+                if conn:
+                    conn.rollback()
+                logger.error(f"❌ Database error: {e}", exc_info=True)
+                raise
+            finally:
+                if conn:
+                    self.pool.putconn(conn)
         else:
             conn = sqlite3.connect('portfolio.db')
             conn.row_factory = sqlite3.Row
             try:
                 yield conn
+            except Exception as e:
+                conn.rollback()
+                logger.error(f"❌ SQLite error: {e}", exc_info=True)
+                raise
             finally:
                 conn.close()
     
     def init_database(self):
         """データベーススキーマを初期化"""
+        logger.info("📊 Initializing database schema...")
+        
         with self.get_db() as conn:
             c = conn.cursor()
             
@@ -68,6 +98,8 @@ class DatabaseManager:
     def _init_postgres(self, cursor, conn):
         """PostgreSQL テーブル作成"""
         try:
+            logger.info("✅ Creating PostgreSQL tables...")
+            
             # usersテーブル
             cursor.execute('''CREATE TABLE IF NOT EXISTS users (
                 id SERIAL PRIMARY KEY,
@@ -90,7 +122,7 @@ class DatabaseManager:
                 FOREIGN KEY (user_id) REFERENCES users (id) ON DELETE CASCADE
             )''')
             
-            # asset_historyテーブル（前日比カラムを含む）
+            # asset_historyテーブル
             cursor.execute('''CREATE TABLE IF NOT EXISTS asset_history (
                 id SERIAL PRIMARY KEY,
                 user_id INTEGER NOT NULL,
@@ -116,44 +148,46 @@ class DatabaseManager:
                 UNIQUE(user_id, record_date)
             )''')
             
-            # インデックスを作成
-            cursor.execute('''CREATE INDEX IF NOT EXISTS idx_assets_user_id 
-                            ON assets(user_id)''')
-            cursor.execute('''CREATE INDEX IF NOT EXISTS idx_asset_history_user_id 
-                            ON asset_history(user_id)''')
-            cursor.execute('''CREATE INDEX IF NOT EXISTS idx_asset_history_user_date 
-                            ON asset_history(user_id, record_date)''')
+            # インデックス作成
+            cursor.execute('CREATE INDEX IF NOT EXISTS idx_assets_user_id ON assets(user_id)')
+            cursor.execute('CREATE INDEX IF NOT EXISTS idx_asset_history_user_id ON asset_history(user_id)')
+            cursor.execute('CREATE INDEX IF NOT EXISTS idx_asset_history_user_date ON asset_history(user_id, record_date)')
             
             conn.commit()
+            logger.info("✅ PostgreSQL tables created")
             
-            # デモユーザー作成
+            # ✅ デモユーザー作成
+            from werkzeug.security import generate_password_hash
+            
             cursor.execute("SELECT id FROM users WHERE username = %s", ('demo',))
             if not cursor.fetchone():
-                from werkzeug.security import generate_password_hash
                 demo_hash = generate_password_hash('demo123')
+                logger.info(f"🔐 Creating demo user (hash: {demo_hash[:30]}...)")
                 cursor.execute("INSERT INTO users (username, password_hash) VALUES (%s, %s)",
                              ('demo', demo_hash))
                 conn.commit()
-                logger.info("✅ Demo user created")
+                logger.info("✅ Demo user created: demo/demo123")
+            else:
+                logger.info("ℹ️ Demo user already exists")
             
             logger.info("✅ PostgreSQL database initialized successfully")
         
         except Exception as e:
-            logger.error(f"❌ Error initializing PostgreSQL database: {e}", exc_info=True)
+            logger.error(f"❌ Error initializing PostgreSQL: {e}", exc_info=True)
             conn.rollback()
             raise
     
     def _init_sqlite(self, cursor, conn):
         """SQLite テーブル作成"""
         try:
-            # usersテーブル - created_at は含めない（既存テーブルに対応）
+            logger.info("✅ Creating SQLite tables...")
+            
             cursor.execute('''CREATE TABLE IF NOT EXISTS users (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
                 username TEXT UNIQUE NOT NULL,
                 password_hash TEXT NOT NULL
             )''')
             
-            # assetsテーブル
             cursor.execute('''CREATE TABLE IF NOT EXISTS assets (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
                 user_id INTEGER NOT NULL,
@@ -167,7 +201,6 @@ class DatabaseManager:
                 FOREIGN KEY (user_id) REFERENCES users (id) ON DELETE CASCADE
             )''')
             
-            # asset_history テーブル作成（前日比カラムを含む）
             cursor.execute('''CREATE TABLE IF NOT EXISTS asset_history (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
                 user_id INTEGER NOT NULL,
@@ -194,20 +227,21 @@ class DatabaseManager:
             )''')
             
             conn.commit()
-            logger.info("✅ SQLite database initialized successfully")
+            logger.info("✅ SQLite tables created")
             
             # デモユーザー作成
+            from werkzeug.security import generate_password_hash
+            
             cursor.execute("SELECT id FROM users WHERE username = ?", ('demo',))
             if not cursor.fetchone():
-                from werkzeug.security import generate_password_hash
                 demo_hash = generate_password_hash('demo123')
                 cursor.execute("INSERT INTO users (username, password_hash) VALUES (?, ?)",
                              ('demo', demo_hash))
                 conn.commit()
-                logger.info("✅ Demo user (demo/demo123) created")
+                logger.info("✅ Demo user created: demo/demo123")
         
         except Exception as e:
-            logger.error(f"❌ Error initializing SQLite database: {e}", exc_info=True)
+            logger.error(f"❌ Error initializing SQLite: {e}", exc_info=True)
             conn.rollback()
             raise
 
