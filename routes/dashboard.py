@@ -1,3 +1,5 @@
+# routes/dashboard.py
+
 from flask import Blueprint, render_template, session, redirect, url_for
 from datetime import datetime, timezone, timedelta
 from models import db_manager
@@ -55,16 +57,33 @@ def get_dashboard_data(user_id):
                     asset_dict = dict(asset) if hasattr(asset, 'keys') else asset
                     assets_by_type[asset_dict['asset_type']].append(asset_dict)
             
-            # 最新の資産スナップショットを取得
+            # ✅ 修正: 今日と昨日の資産履歴を両方取得
             jst = timezone(timedelta(hours=9))
             today = datetime.now(jst).date()
+            yesterday = today - timedelta(days=1)
             
+            # 今日のスナップショット
             if db_manager.use_postgres:
-                c.execute('SELECT * FROM asset_history WHERE user_id = %s AND record_date = %s', (user_id, today))
+                c.execute('''SELECT * FROM asset_history 
+                            WHERE user_id = %s AND record_date = %s''', (user_id, today))
             else:
-                c.execute('SELECT * FROM asset_history WHERE user_id = ? AND record_date = ?', (user_id, today))
+                c.execute('''SELECT * FROM asset_history 
+                            WHERE user_id = ? AND record_date = ?''', (user_id, today))
             
             today_snapshot = c.fetchone()
+            
+            # 昨日のスナップショット
+            if db_manager.use_postgres:
+                c.execute('''SELECT * FROM asset_history 
+                            WHERE user_id = %s AND record_date = %s''', (user_id, yesterday))
+            else:
+                c.execute('''SELECT * FROM asset_history 
+                            WHERE user_id = ? AND record_date = ?''', (user_id, yesterday))
+            
+            yesterday_snapshot = c.fetchone()
+            
+            logger.info(f"📊 Today snapshot: {today_snapshot is not None}")
+            logger.info(f"📊 Yesterday snapshot: {yesterday_snapshot is not None}")
             
             # USD/JPY レート取得
             try:
@@ -109,38 +128,29 @@ def get_dashboard_data(user_id):
                     profit = total_value - cost_value
                     profit_rate = (profit / cost_value * 100) if cost_value > 0 else 0.0
                     
-                    # 前日比を計算
+                    # ✅ 修正: 前日比を昨日のスナップショットから計算
                     day_change = 0.0
                     day_change_rate = 0.0
                     
-                    if today_snapshot:
-                        if asset_type == 'jp_stock':
-                            current_val = safe_get(today_snapshot, 'jp_stock_value', 0.0)
-                            prev_val = safe_get(today_snapshot, 'prev_jp_stock_value', 0.0)
-                        elif asset_type == 'us_stock':
-                            current_val = safe_get(today_snapshot, 'us_stock_value', 0.0)
-                            prev_val = safe_get(today_snapshot, 'prev_us_stock_value', 0.0)
-                        elif asset_type == 'cash':
-                            current_val = safe_get(today_snapshot, 'cash_value', 0.0)
-                            prev_val = safe_get(today_snapshot, 'prev_cash_value', 0.0)
-                        elif asset_type == 'gold':
-                            current_val = safe_get(today_snapshot, 'gold_value', 0.0)
-                            prev_val = safe_get(today_snapshot, 'prev_gold_value', 0.0)
-                        elif asset_type == 'crypto':
-                            current_val = safe_get(today_snapshot, 'crypto_value', 0.0)
-                            prev_val = safe_get(today_snapshot, 'prev_crypto_value', 0.0)
-                        elif asset_type == 'investment_trust':
-                            current_val = safe_get(today_snapshot, 'investment_trust_value', 0.0)
-                            prev_val = safe_get(today_snapshot, 'prev_investment_trust_value', 0.0)
-                        elif asset_type == 'insurance':
-                            current_val = safe_get(today_snapshot, 'insurance_value', 0.0)
-                            prev_val = safe_get(today_snapshot, 'prev_insurance_value', 0.0)
-                        else:
-                            current_val = 0.0
-                            prev_val = 0.0
+                    if yesterday_snapshot:
+                        # 昨日の資産値を取得
+                        field_map = {
+                            'jp_stock': 'jp_stock_value',
+                            'us_stock': 'us_stock_value',
+                            'cash': 'cash_value',
+                            'gold': 'gold_value',
+                            'crypto': 'crypto_value',
+                            'investment_trust': 'investment_trust_value',
+                            'insurance': 'insurance_value'
+                        }
                         
-                        day_change = current_val - prev_val
-                        day_change_rate = (day_change / prev_val * 100) if prev_val > 0 else 0.0
+                        field_name = field_map.get(asset_type)
+                        if field_name:
+                            prev_val = safe_get(yesterday_snapshot, field_name, 0.0)
+                            day_change = total_value - prev_val
+                            day_change_rate = (day_change / prev_val * 100) if prev_val > 0 else 0.0
+                            
+                            logger.info(f"📊 {asset_type}: current={total_value:.2f}, prev={prev_val:.2f}, change={day_change:.2f}")
                     
                     return {
                         'total': total_value,
@@ -178,15 +188,16 @@ def get_dashboard_data(user_id):
             total_profit = total_assets - total_cost
             total_profit_rate = (total_profit / total_cost * 100) if total_cost > 0 else 0.0
             
-            # 総資産の前日比
+            # ✅ 修正: 総資産の前日比を昨日のスナップショットから計算
             total_day_change = 0.0
             total_day_change_rate = 0.0
-            if today_snapshot:
-                total_day_change = safe_get(today_snapshot, 'total_value', 0.0) - safe_get(today_snapshot, 'prev_total_value', 0.0)
-                prev_total = safe_get(today_snapshot, 'prev_total_value', 0.0)
+            if yesterday_snapshot:
+                prev_total = safe_get(yesterday_snapshot, 'total_value', 0.0)
+                total_day_change = total_assets - prev_total
                 total_day_change_rate = (total_day_change / prev_total * 100) if prev_total > 0 else 0.0
+                logger.info(f"📊 Total: current={total_assets:.2f}, prev={prev_total:.2f}, change={total_day_change:.2f}")
             
-            # ✅ チャート用データ - カード表示と同じ計算済み統計値を使用
+            # チャート用データ
             chart_data = {
                 'labels': ['日本株', '米国株', '現金', '金', '暗号資産', '投資信託', '保険'],
                 'values': [
