@@ -14,76 +14,76 @@ class PriceService:
         })
     
     def fetch_price(self, asset):
-        """単一資産の価格を取得"""
-        try:
-            # ✅ 修正: assetを辞書型に変換
-            if hasattr(asset, 'keys'):
-                # dict-likeオブジェクト（RealDictRowなど）
-                asset_dict = dict(asset)
-            elif isinstance(asset, dict):
-                asset_dict = asset
-            else:
-                # タプルの場合（通常は発生しないが念のため）
-                logger.error(f"❌ Unexpected asset type: {type(asset)}")
-                return None
-            
-            asset_id = asset_dict['id']
-            asset_type = asset_dict['asset_type']
-            symbol = asset_dict['symbol']
-            
-            logger.debug(f"🔍 Fetching price for {symbol} ({asset_type})")
-            
-            # 現金と保険は価格取得不要
-            if asset_type in ['cash', 'insurance']:
-                return None
-            
-            # キャッシュチェック
-            cache_key = f"{asset_type}:{symbol}"
-            cached = self.cache.get(cache_key)
-            if cached:
-                logger.debug(f"💾 Using cached price for {symbol}")
-                return {
-                    'id': asset_id,
-                    'symbol': symbol,
-                    'price': cached['price'],
-                    'name': cached.get('name', symbol)
-                }
-            
-            # 価格取得
-            price = 0.0
-            name = symbol
-            
-            if asset_type == 'jp_stock':
-                price, name = self._fetch_jp_stock(symbol)
-            elif asset_type == 'us_stock':
-                price, name = self._fetch_us_stock(symbol)
-            elif asset_type == 'gold':
-                price, name = self._fetch_gold_price()
-            elif asset_type == 'crypto':
-                price, name = self._fetch_crypto(symbol)
-            elif asset_type == 'investment_trust':
-                price, name = self._fetch_investment_trust(symbol)
-            else:
-                logger.warning(f"⚠️ Unknown asset type: {asset_type}")
-                return None
-            
-            # キャッシュに保存
-            self.cache.set(cache_key, {'price': price, 'name': name})
-            
-            # ✅ 必ず辞書型で返す
-            result = {
+    """単一資産の価格を取得"""
+    try:
+        # ✅ 修正: assetを辞書型に変換
+        if hasattr(asset, 'keys'):
+            # dict-likeオブジェクト（RealDictRowなど）
+            asset_dict = dict(asset)
+        elif isinstance(asset, dict):
+            asset_dict = asset
+        else:
+            # タプルの場合（通常は発生しないが念のため）
+            logger.error(f"❌ Unexpected asset type: {type(asset)}")
+            return None
+        
+        asset_id = asset_dict['id']
+        asset_type = asset_dict['asset_type']
+        symbol = asset_dict['symbol']
+        
+        logger.debug(f"🔍 Fetching price for {symbol} ({asset_type})")
+        
+        # 現金と保険は価格取得不要
+        if asset_type in ['cash', 'insurance']:
+            return None
+        
+        # キャッシュチェック
+        cache_key = f"{asset_type}:{symbol}"
+        cached = self.cache.get(cache_key)
+        if cached:
+            logger.debug(f"💾 Using cached price for {symbol}")
+            return {
                 'id': asset_id,
                 'symbol': symbol,
-                'price': price,
-                'name': name
+                'price': cached['price'],
+                'name': cached.get('name', symbol)
             }
-            
-            logger.info(f"✅ Fetched price for {symbol}: ¥{price:,.2f}")
-            return result
         
-        except Exception as e:
-            logger.error(f"❌ Error fetching price for {symbol if 'symbol' in locals() else 'unknown'}: {e}", exc_info=True)
+        # 価格取得
+        price = 0.0
+        name = symbol
+        
+        if asset_type == 'jp_stock':
+            price, name = self._fetch_jp_stock(symbol)
+        elif asset_type == 'us_stock':
+            price, name = self._fetch_us_stock(symbol)
+        elif asset_type == 'gold':
+            price, name = self._fetch_gold_price()
+        elif asset_type == 'crypto':
+            price, name = self._fetch_crypto(symbol)
+        elif asset_type == 'investment_trust':
+            price, name = self._fetch_investment_trust(symbol)
+        else:
+            logger.warning(f"⚠️ Unknown asset type: {asset_type}")
             return None
+        
+        # キャッシュに保存
+        self.cache.set(cache_key, {'price': price, 'name': name})
+        
+        # ✅ 必ず辞書型で返す
+        result = {
+            'id': asset_id,
+            'symbol': symbol,
+            'price': price,
+            'name': name
+        }
+        
+        logger.info(f"✅ Fetched price for {symbol}: ¥{price:,.2f}")
+        return result
+    
+    except Exception as e:
+        logger.error(f"❌ Error fetching price for {symbol if 'symbol' in locals() else 'unknown'}: {e}", exc_info=True)
+        return None
     
     def fetch_prices_parallel(self, assets):
         """複数資産の価格を並列取得"""
@@ -307,3 +307,4 @@ class PriceService:
 # グローバルインスタンス
 from config import get_config
 price_service = PriceService(get_config())
+
