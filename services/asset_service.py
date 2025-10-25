@@ -19,14 +19,29 @@ class AssetService:
         """現在の資産状況をスナップショットとして記録（前日比を含む）"""
         try:
             with db_manager.get_db() as conn:
-                c = conn.cursor()
+                # PostgreSQL/SQLiteの統一インターフェース
+                if self.use_postgres:
+                    from psycopg2.extras import RealDictCursor
+                    c = conn.cursor(cursor_factory=RealDictCursor)
+                else:
+                    c = conn.cursor()
                 
                 jst = timezone(timedelta(hours=9))
                 today = datetime.now(jst).date()
                 yesterday = today - timedelta(days=1)
                 
+                logger.info(f"📸 Recording asset snapshot for user {user_id}, date: {today}")
+                
                 asset_types = ['jp_stock', 'us_stock', 'cash', 'gold', 'crypto', 'investment_trust', 'insurance']
                 values = {}
+                
+                # ✅ 修正: USD/JPYレートを取得
+                try:
+                    usd_jpy = price_service.get_usd_jpy_rate()
+                    logger.info(f"💱 USD/JPY rate: {usd_jpy}")
+                except Exception as e:
+                    logger.warning(f"Failed to get USD/JPY rate: {e}")
+                    usd_jpy = 150.0
                 
                 # 当日の資産値を計算
                 for asset_type in asset_types:
@@ -40,7 +55,6 @@ class AssetService:
                     
                     total = 0
                     if asset_type == 'us_stock':
-                        usd_jpy = price_service.get_usd_jpy_rate()
                         total = sum(a['quantity'] * a['price'] for a in assets) * usd_jpy
                     elif asset_type == 'investment_trust':
                         total = sum((a['quantity'] * a['price'] / 10000) for a in assets)
@@ -52,10 +66,12 @@ class AssetService:
                         total = sum(a['quantity'] * a['price'] for a in assets)
                     
                     values[asset_type] = total
+                    logger.info(f"  {asset_type}: ¥{total:,.2f}")
                 
                 total_value = sum(values.values())
+                logger.info(f"  📊 Total: ¥{total_value:,.2f}")
                 
-                # 前日のスナップショットを取得
+                # ✅ 修正: 昨日のスナップショットを取得（前日の値として使用）
                 if self.use_postgres:
                     c.execute('''SELECT jp_stock_value, us_stock_value, cash_value, 
                                         gold_value, crypto_value, investment_trust_value, 
@@ -71,21 +87,36 @@ class AssetService:
                                 WHERE user_id = ? AND record_date = ?''',
                              (user_id, yesterday))
                 
-                prev_record = c.fetchone()
+                yesterday_record = c.fetchone()
                 
-                # 前日のデータがない場合は0として扱う
-                prev_values = {
-                    'jp_stock': prev_record['jp_stock_value'] if prev_record else 0,
-                    'us_stock': prev_record['us_stock_value'] if prev_record else 0,
-                    'cash': prev_record['cash_value'] if prev_record else 0,
-                    'gold': prev_record['gold_value'] if prev_record else 0,
-                    'crypto': prev_record['crypto_value'] if prev_record else 0,
-                    'investment_trust': prev_record['investment_trust_value'] if prev_record else 0,
-                    'insurance': prev_record['insurance_value'] if prev_record else 0,
-                }
-                prev_total_value = prev_record['total_value'] if prev_record else 0
+                # 前日のデータがある場合はそれを使用、ない場合は0
+                if yesterday_record:
+                    prev_values = {
+                        'jp_stock': float(yesterday_record['jp_stock_value'] or 0),
+                        'us_stock': float(yesterday_record['us_stock_value'] or 0),
+                        'cash': float(yesterday_record['cash_value'] or 0),
+                        'gold': float(yesterday_record['gold_value'] or 0),
+                        'crypto': float(yesterday_record['crypto_value'] or 0),
+                        'investment_trust': float(yesterday_record['investment_trust_value'] or 0),
+                        'insurance': float(yesterday_record['insurance_value'] or 0),
+                    }
+                    prev_total_value = float(yesterday_record['total_value'] or 0)
+                    logger.info(f"📅 Yesterday's data found: Total ¥{prev_total_value:,.2f}")
+                else:
+                    # 前日のデータがない場合は、今日のデータを前日の値としても使用（初回記録時）
+                    prev_values = {
+                        'jp_stock': values['jp_stock'],
+                        'us_stock': values['us_stock'],
+                        'cash': values['cash'],
+                        'gold': values['gold'],
+                        'crypto': values['crypto'],
+                        'investment_trust': values['investment_trust'],
+                        'insurance': values['insurance'],
+                    }
+                    prev_total_value = total_value
+                    logger.info(f"⚠️ No yesterday data found, using current values as previous")
                 
-                # 当日のスナップショットを保存（前日比を含む）
+                # ✅ 修正: 当日のスナップショットを保存または更新
                 if self.use_postgres:
                     c.execute('''INSERT INTO asset_history 
                                 (user_id, record_date, jp_stock_value, us_stock_value, cash_value, 
@@ -103,15 +134,7 @@ class AssetService:
                                     crypto_value = EXCLUDED.crypto_value,
                                     investment_trust_value = EXCLUDED.investment_trust_value,
                                     insurance_value = EXCLUDED.insurance_value,
-                                    total_value = EXCLUDED.total_value,
-                                    prev_jp_stock_value = EXCLUDED.prev_jp_stock_value,
-                                    prev_us_stock_value = EXCLUDED.prev_us_stock_value,
-                                    prev_cash_value = EXCLUDED.prev_cash_value,
-                                    prev_gold_value = EXCLUDED.prev_gold_value,
-                                    prev_crypto_value = EXCLUDED.prev_crypto_value,
-                                    prev_investment_trust_value = EXCLUDED.prev_investment_trust_value,
-                                    prev_insurance_value = EXCLUDED.prev_insurance_value,
-                                    prev_total_value = EXCLUDED.prev_total_value''',
+                                    total_value = EXCLUDED.total_value''',
                              (user_id, today, values['jp_stock'], values['us_stock'], values['cash'],
                               values['gold'], values['crypto'], values['investment_trust'], values['insurance'], 
                               total_value,
@@ -134,7 +157,20 @@ class AssetService:
                               prev_values['insurance'], prev_total_value))
                 
                 conn.commit()
-                logger.info(f"✅ Asset snapshot recorded for user {user_id}")
+                
+                # ✅ デバッグ: 前日比を計算して表示
+                day_changes = {}
+                for asset_type in asset_types:
+                    change = values[asset_type] - prev_values[asset_type]
+                    change_rate = (change / prev_values[asset_type] * 100) if prev_values[asset_type] > 0 else 0
+                    day_changes[asset_type] = (change, change_rate)
+                    logger.info(f"  📊 {asset_type}: {'+' if change >= 0 else ''}¥{change:,.2f} ({'+' if change_rate >= 0 else ''}{change_rate:.2f}%)")
+                
+                total_change = total_value - prev_total_value
+                total_change_rate = (total_change / prev_total_value * 100) if prev_total_value > 0 else 0
+                logger.info(f"  📊 Total change: {'+' if total_change >= 0 else ''}¥{total_change:,.2f} ({'+' if total_change_rate >= 0 else ''}{total_change_rate:.2f}%)")
+                
+                logger.info(f"✅ Asset snapshot recorded for user {user_id} on {today}")
         
         except Exception as e:
             logger.error(f"❌ Failed to record asset snapshot: {e}", exc_info=True)
@@ -145,7 +181,12 @@ class AssetService:
             logger.info(f"⚡ Starting price update for user {user_id}")
             
             with db_manager.get_db() as conn:
-                c = conn.cursor()
+                if self.use_postgres:
+                    from psycopg2.extras import RealDictCursor
+                    c = conn.cursor(cursor_factory=RealDictCursor)
+                else:
+                    c = conn.cursor()
+                
                 asset_types_to_update = ['jp_stock', 'us_stock', 'gold', 'crypto', 'investment_trust']
                 
                 query_placeholder = ', '.join(['%s'] * len(asset_types_to_update)) if self.use_postgres else ', '.join(['?'] * len(asset_types_to_update))
