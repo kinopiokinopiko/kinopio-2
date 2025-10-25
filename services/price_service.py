@@ -1,6 +1,7 @@
 import requests
 from bs4 import BeautifulSoup
 import time
+import random
 import concurrent.futures
 from utils import logger, cache
 
@@ -9,8 +10,25 @@ class PriceService:
         self.config = config
         self.cache = cache.SimpleCache(duration=300)  # 5分キャッシュ
         self.session = requests.Session()
+        
+        # ✅ User-Agentをランダム化
+        self.user_agents = [
+            'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+            'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+            'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+            'Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:121.0) Gecko/20100101 Firefox/121.0'
+        ]
+        self._update_user_agent()
+    
+    def _update_user_agent(self):
+        """User-Agentをランダムに更新"""
         self.session.headers.update({
-            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
+            'User-Agent': random.choice(self.user_agents),
+            'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
+            'Accept-Language': 'ja,en-US;q=0.9,en;q=0.8',
+            'Accept-Encoding': 'gzip, deflate, br',
+            'Connection': 'keep-alive',
+            'Upgrade-Insecure-Requests': '1'
         })
     
     def fetch_price(self, asset):
@@ -47,6 +65,10 @@ class PriceService:
                     'name': cached.get('name', symbol)
                 }
             
+            # ✅ リクエスト間にランダムな遅延を追加（Bot対策）
+            time.sleep(random.uniform(0.5, 1.5))
+            self._update_user_agent()
+            
             # 価格取得
             price = 0.0
             name = symbol
@@ -65,8 +87,9 @@ class PriceService:
                 else:
                     logger.warning(f"⚠️ Unknown asset type: {asset_type}")
                     return None
+            
             except Exception as fetch_error:
-                # ✅ エラー時は現在の価格を維持してスキップ
+                # ✅ エラー時は価格取得をスキップ（データベースの既存価格を維持）
                 logger.warning(f"⚠️ Failed to fetch price for {symbol}, skipping: {fetch_error}")
                 return None
             
@@ -85,7 +108,7 @@ class PriceService:
             return result
         
         except Exception as e:
-            logger.error(f"❌ Error fetching price for {symbol if 'symbol' in locals() else 'unknown'}: {e}")
+            logger.warning(f"⚠️ Error fetching price for {symbol if 'symbol' in locals() else 'unknown'}: {e}")
             return None
     
     def fetch_prices_parallel(self, assets):
@@ -94,22 +117,25 @@ class PriceService:
             logger.warning("⚠️ No assets to fetch prices for")
             return []
         
-        # ✅ ワーカー数を制限（タイムアウト対策）
-        max_workers = min(10, len(assets))  # 20 → 10 に削減
+        # ✅ ワーカー数をさらに削減（Bot対策 + タイムアウト対策）
+        max_workers = min(5, len(assets))  # 10 → 5 に削減
         updated_prices = []
         
         logger.info(f"🔄 Starting parallel price fetch for {len(assets)} assets with {max_workers} workers")
         
         try:
             with concurrent.futures.ThreadPoolExecutor(max_workers=max_workers) as executor:
-                # ✅ タイムアウトを設定
+                # ✅ 個別タイムアウトを設定
                 future_to_asset = {executor.submit(self.fetch_price, asset): asset for asset in assets}
                 
-                for future in concurrent.futures.as_completed(future_to_asset, timeout=240):
+                completed = 0
+                for future in concurrent.futures.as_completed(future_to_asset, timeout=180):  # 3分
+                    completed += 1
                     try:
-                        result = future.result(timeout=10)  # 個別タイムアウト10秒
+                        result = future.result(timeout=15)  # 個別タイムアウト15秒
                         if result is not None and isinstance(result, dict):
                             updated_prices.append(result)
+                            logger.info(f"✅ Progress: {completed}/{len(assets)}")
                     except concurrent.futures.TimeoutError:
                         asset = future_to_asset[future]
                         logger.warning(f"⚠️ Timeout fetching price for {asset.get('symbol', 'unknown')}")
@@ -121,7 +147,7 @@ class PriceService:
             return updated_prices
         
         except concurrent.futures.TimeoutError:
-            logger.error(f"❌ Overall timeout in parallel fetch")
+            logger.warning(f"⚠️ Overall timeout in parallel fetch, returning {len(updated_prices)} results")
             return updated_prices  # 取得できた分だけ返す
         
         except Exception as e:
@@ -132,36 +158,35 @@ class PriceService:
         """日本株の価格を取得（Yahoo Finance Japan）"""
         try:
             url = f"https://finance.yahoo.co.jp/quote/{symbol}.T"
-            response = self.session.get(url, timeout=self.config.API_TIMEOUT)
+            response = self.session.get(url, timeout=10)
             response.raise_for_status()
             
             soup = BeautifulSoup(response.text, 'lxml')
             
-            # ✅ 複数のセレクタを試す
+            # ✅ より多くのセレクタを試す
             price_elem = None
             selectors = [
                 'span._3BGK5SVf',
                 'span.stoksPrice',
                 'span[class*="price"]',
-                'div[class*="price"]'
+                'div[class*="price"] span',
+                'dd[class*="price"]',
+                'span[data-test="qsp-price"]'
             ]
             
             for selector in selectors:
                 price_elem = soup.select_one(selector)
-                if price_elem:
+                if price_elem and price_elem.text.strip():
                     break
             
             if price_elem:
-                price_text = price_elem.text.strip().replace(',', '').replace('円', '')
+                price_text = price_elem.text.strip().replace(',', '').replace('円', '').replace(' ', '')
                 price = float(price_text)
             else:
                 raise ValueError(f"Price element not found for {symbol}")
             
             # 銘柄名取得
-            name_elem = soup.select_one('h1._1jTcLIqL')
-            if not name_elem:
-                name_elem = soup.select_one('h1')
-            
+            name_elem = soup.select_one('h1._1jTcLIqL') or soup.select_one('h1')
             name = name_elem.text.strip() if name_elem else symbol
             
             return price, name
@@ -174,15 +199,24 @@ class PriceService:
         """米国株の価格を取得（Yahoo Finance US）"""
         try:
             url = f"https://finance.yahoo.com/quote/{symbol}"
-            response = self.session.get(url, timeout=self.config.API_TIMEOUT)
+            response = self.session.get(url, timeout=10)
             response.raise_for_status()
             
             soup = BeautifulSoup(response.text, 'lxml')
             
-            # 価格取得
-            price_elem = soup.select_one('fin-streamer[data-symbol="{}"][data-field="regularMarketPrice"]'.format(symbol))
-            if not price_elem:
-                price_elem = soup.select_one('fin-streamer[data-field="regularMarketPrice"]')
+            # ✅ 複数のセレクタを試す
+            price_elem = None
+            selectors = [
+                f'fin-streamer[data-symbol="{symbol}"][data-field="regularMarketPrice"]',
+                'fin-streamer[data-field="regularMarketPrice"]',
+                'span[data-test="qsp-price"]',
+                'div[data-test="qsp-price"] span'
+            ]
+            
+            for selector in selectors:
+                price_elem = soup.select_one(selector)
+                if price_elem and price_elem.text.strip():
+                    break
             
             if price_elem:
                 price = float(price_elem.text.strip().replace(',', ''))
@@ -203,7 +237,7 @@ class PriceService:
         """金価格を取得（田中貴金属）"""
         try:
             url = "https://gold.tanaka.co.jp/commodity/souba/m-gold.php"
-            response = self.session.get(url, timeout=self.config.API_TIMEOUT)
+            response = self.session.get(url, timeout=10)
             response.raise_for_status()
             
             soup = BeautifulSoup(response.text, 'lxml')
@@ -211,7 +245,7 @@ class PriceService:
             # 金価格取得（買取価格）
             price_elem = soup.select_one('table.table_main tr:nth-of-type(2) td:nth-of-type(3)')
             if price_elem:
-                price_text = price_elem.text.strip().replace(',', '').replace('円', '')
+                price_text = price_elem.text.strip().replace(',', '').replace('円', '').replace(' ', '')
                 price = float(price_text)
             else:
                 raise ValueError("Gold price element not found")
@@ -223,35 +257,30 @@ class PriceService:
             raise
     
     def _fetch_crypto(self, symbol):
-        """暗号資産の価格を取得（みんかぶ暗号資産）"""
+        """暗号資産の価格を取得（CoinGecko APIに変更）"""
         try:
+            # ✅ みんかぶの代わりにCoinGecko APIを使用（より安定）
             symbol_map = {
-                'BTC': 'btc',
-                'ETH': 'eth',
-                'XRP': 'xrp',
-                'DOGE': 'doge'
+                'BTC': 'bitcoin',
+                'ETH': 'ethereum',
+                'XRP': 'ripple',
+                'DOGE': 'dogecoin'
             }
             
-            symbol_lower = symbol_map.get(symbol.upper(), symbol.lower())
-            url = f"https://cc.minkabu.jp/pair/{symbol_lower}_jpy"
+            coin_id = symbol_map.get(symbol.upper(), symbol.lower())
+            url = f"https://api.coingecko.com/api/v3/simple/price?ids={coin_id}&vs_currencies=jpy"
             
-            response = self.session.get(url, timeout=self.config.API_TIMEOUT)
+            response = self.session.get(url, timeout=10)
             response.raise_for_status()
             
-            soup = BeautifulSoup(response.text, 'lxml')
+            data = response.json()
             
-            # 価格取得
-            price_elem = soup.select_one('div.md_price')
-            if not price_elem:
-                price_elem = soup.select_one('span.price')
-            
-            if price_elem:
-                price_text = price_elem.text.strip().replace(',', '').replace('¥', '').replace('円', '')
-                price = float(price_text)
+            if coin_id in data and 'jpy' in data[coin_id]:
+                price = float(data[coin_id]['jpy'])
             else:
-                raise ValueError(f"Crypto price element not found for {symbol}")
+                raise ValueError(f"Crypto price not found for {symbol}")
             
-            # 名前取得
+            # 名前マッピング
             name_map = {
                 'BTC': 'ビットコイン',
                 'ETH': 'イーサリアム',
@@ -278,18 +307,27 @@ class PriceService:
             code = symbol_map.get(symbol, symbol)
             url = f"https://www.rakuten-sec.co.jp/web/fund/detail/?ID={code}"
             
-            response = self.session.get(url, timeout=self.config.API_TIMEOUT)
+            response = self.session.get(url, timeout=10)
             response.raise_for_status()
             
             soup = BeautifulSoup(response.text, 'lxml')
             
-            # 基準価額取得
-            price_elem = soup.select_one('span.value')
-            if not price_elem:
-                price_elem = soup.select_one('dd.fund-detail-nav')
+            # ✅ 複数のセレクタを試す
+            price_elem = None
+            selectors = [
+                'span.value',
+                'dd.fund-detail-nav',
+                'span[class*="nav"]',
+                'div[class*="price"] span'
+            ]
+            
+            for selector in selectors:
+                price_elem = soup.select_one(selector)
+                if price_elem and price_elem.text.strip():
+                    break
             
             if price_elem:
-                price_text = price_elem.text.strip().replace(',', '').replace('円', '')
+                price_text = price_elem.text.strip().replace(',', '').replace('円', '').replace(' ', '')
                 price = float(price_text)
             else:
                 raise ValueError(f"Investment trust price element not found for {symbol}")
@@ -309,14 +347,12 @@ class PriceService:
                 return cached['rate']
             
             url = "https://finance.yahoo.co.jp/quote/USDJPY=X"
-            response = self.session.get(url, timeout=self.config.API_TIMEOUT)
+            response = self.session.get(url, timeout=10)
             response.raise_for_status()
             
             soup = BeautifulSoup(response.text, 'lxml')
             
-            price_elem = soup.select_one('span._3BGK5SVf')
-            if not price_elem:
-                price_elem = soup.select_one('span.stoksPrice')
+            price_elem = soup.select_one('span._3BGK5SVf') or soup.select_one('span.stoksPrice')
             
             if price_elem:
                 rate = float(price_elem.text.strip().replace(',', ''))
