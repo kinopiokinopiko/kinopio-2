@@ -385,6 +385,93 @@
         }
     }
 </style>
+<style>
+    /* 既存のスタイルに追加・修正 */
+    
+    .card-profit-wrapper {
+        display: flex;
+        justify-content: center;
+        gap: 12px;
+        margin-top: 12px;
+        font-size: 14px;
+        flex-wrap: wrap; /* ✅ 追加: 改行を許可 */
+    }
+    
+    .card-profit-item {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 4px;
+        flex: 1;
+        min-width: 100px; /* ✅ 追加: 最小幅を確保 */
+    }
+    
+    .card-profit-label {
+        font-size: 11px; /* ✅ 修正: 少し小さく */
+        color: #999;
+        font-weight: 600;
+        text-transform: uppercase;
+        letter-spacing: 0.3px;
+        white-space: nowrap; /* ✅ 追加: 改行させない */
+    }
+    
+    .card-profit-value {
+        font-size: 14px; /* ✅ 修正: 少し小さく */
+        font-weight: 700;
+        white-space: nowrap; /* ✅ 追加: 改行させない */
+        overflow: hidden;
+        text-overflow: ellipsis;
+        max-width: 100%;
+    }
+
+    .card-profit-percentage {
+        font-size: 11px; /* ✅ 修正: 少し小さく */
+        opacity: 0.8;
+        margin-left: 4px; /* ✅ 修正: 間隔を狭く */
+        font-weight: 600;
+        white-space: nowrap;
+    }
+    
+    /* ✅ スマホ用のメディアクエリ追加 */
+    @media (max-width: 480px) {
+        .card-profit-wrapper {
+            gap: 8px;
+            font-size: 12px;
+        }
+        
+        .card-profit-item {
+            min-width: 80px;
+        }
+        
+        .card-profit-label {
+            font-size: 10px;
+        }
+        
+        .card-profit-value {
+            font-size: 13px;
+        }
+        
+        .card-profit-percentage {
+            font-size: 10px;
+            display: block; /* ✅ 追加: %を改行 */
+            margin-left: 0;
+            margin-top: 2px;
+        }
+        
+        .asset-grid {
+            gap: 12px;
+        }
+        
+        .asset-card {
+            padding: 16px;
+        }
+        
+        .card-amount {
+            font-size: 22px;
+            margin-bottom: 8px;
+        }
+    }
+</style>
 {% endblock %}
 
 {% block content %}
@@ -965,4 +1052,5 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 });
 </script>
+
 {% endblock %}
