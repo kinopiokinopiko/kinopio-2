@@ -86,27 +86,28 @@ class PriceService:
         return None
     
     def fetch_prices_parallel(self, assets):
-        """複数資産の価格を並列取得"""
-        if not assets:
-            logger.warning("⚠️ No assets to fetch prices for")
-            return []
+    """複数資産の価格を並列取得"""
+    if not assets:
+        logger.warning("⚠️ No assets to fetch prices for")
+        return []
+    
+    max_workers = min(self.config.MAX_WORKERS, len(assets))
+    updated_prices = []
+    
+    logger.info(f"🔄 Starting parallel price fetch for {len(assets)} assets with {max_workers} workers")
+    
+    try:
+        with concurrent.futures.ThreadPoolExecutor(max_workers=max_workers) as executor:
+            results = executor.map(self.fetch_price, assets)
+            # ✅ 修正: Noneを除外し、辞書型のリストを返す
+            updated_prices = [res for res in results if res is not None and isinstance(res, dict)]
         
-        max_workers = min(self.config.MAX_WORKERS, len(assets))
-        updated_prices = []
-        
-        logger.info(f"🔄 Starting parallel price fetch for {len(assets)} assets with {max_workers} workers")
-        
-        try:
-            with concurrent.futures.ThreadPoolExecutor(max_workers=max_workers) as executor:
-                results = executor.map(self.fetch_price, assets)
-                updated_prices = [res for res in results if res is not None]
-            
-            logger.info(f"✅ Completed parallel fetch: {len(updated_prices)} prices updated")
-            return updated_prices
-        
-        except Exception as e:
-            logger.error(f"❌ Error in parallel fetch: {e}", exc_info=True)
-            return []
+        logger.info(f"✅ Completed parallel fetch: {len(updated_prices)} prices updated")
+        return updated_prices
+    
+    except Exception as e:
+        logger.error(f"❌ Error in parallel fetch: {e}", exc_info=True)
+        return []
     
     def _fetch_jp_stock(self, symbol):
         """日本株の価格を取得（Yahoo Finance Japan）"""
@@ -307,4 +308,5 @@ class PriceService:
 # グローバルインスタンス
 from config import get_config
 price_service = PriceService(get_config())
+
 
