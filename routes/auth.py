@@ -29,8 +29,8 @@ def login():
         
         try:
             with db_manager.get_db() as conn:
-                # ✅ 修正: カーソル取得を統一（RealDictCursorは自動設定される）
-                c = conn.cursor()
+                # ✅ 修正: get_cursor()を使用
+                c = db_manager.get_cursor(conn)
                 logger.info(f"🔌 Using {'PostgreSQL' if db_manager.use_postgres else 'SQLite'} for login")
                 
                 # ユーザー検索
@@ -42,7 +42,7 @@ def login():
                 user = c.fetchone()
                 
                 if user:
-                    # ✅ 修正: 辞書アクセスを統一
+                    # 辞書アクセスを統一
                     user_id = user['id']
                     user_username = user['username']
                     user_password_hash = user['password_hash']
@@ -103,7 +103,7 @@ def register():
         
         try:
             with db_manager.get_db() as conn:
-                c = conn.cursor()
+                c = db_manager.get_cursor(conn)
                 
                 # ユーザー名の重複チェック
                 if db_manager.use_postgres:
