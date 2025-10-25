@@ -14,7 +14,6 @@ def get_current_user():
     
     try:
         with db_manager.get_db() as conn:
-            # ✅ 修正: conn.cursor() を直接呼び出す
             c = conn.cursor()
             
             if db_manager.use_postgres:
@@ -22,7 +21,8 @@ def get_current_user():
             else:
                 c.execute('SELECT id, username FROM users WHERE id = ?', (user_id,))
             
-            return c.fetchone()
+            user = c.fetchone()
+            return user
     except Exception as e:
         logger.error(f"❌ Error getting current user: {e}", exc_info=True)
         return None
@@ -79,19 +79,33 @@ def manage_assets(asset_type):
             
             assets = c.fetchall()
             
-            # 辞書型に変換
+            # ✅ 修正: 辞書型に変換（dict-likeオブジェクト対応）
             assets_list = []
             for asset in assets:
+                # RealDictRowやRow objectを辞書に変換
+                asset_dict = dict(asset) if hasattr(asset, 'keys') else {
+                    'id': asset[0],
+                    'symbol': asset[1],
+                    'name': asset[2],
+                    'quantity': asset[3],
+                    'price': asset[4],
+                    'avg_cost': asset[5],
+                    'current_value': asset[6],
+                    'cost_value': asset[7],
+                    'profit': asset[8]
+                }
+                
+                # 数値型に変換
                 assets_list.append({
-                    'id': asset['id'],
-                    'symbol': asset['symbol'],
-                    'name': asset['name'],
-                    'quantity': float(asset['quantity']) if asset['quantity'] else 0.0,
-                    'price': float(asset['price']) if asset['price'] else 0.0,
-                    'avg_cost': float(asset['avg_cost']) if asset['avg_cost'] else 0.0,
-                    'current_value': float(asset['current_value']) if asset['current_value'] else 0.0,
-                    'cost_value': float(asset['cost_value']) if asset['cost_value'] else 0.0,
-                    'profit': float(asset['profit']) if asset['profit'] else 0.0
+                    'id': int(asset_dict['id']),
+                    'symbol': str(asset_dict['symbol']),
+                    'name': str(asset_dict['name']) if asset_dict['name'] else str(asset_dict['symbol']),
+                    'quantity': float(asset_dict['quantity']) if asset_dict['quantity'] is not None else 0.0,
+                    'price': float(asset_dict['price']) if asset_dict['price'] is not None else 0.0,
+                    'avg_cost': float(asset_dict['avg_cost']) if asset_dict['avg_cost'] is not None else 0.0,
+                    'current_value': float(asset_dict['current_value']) if asset_dict['current_value'] is not None else 0.0,
+                    'cost_value': float(asset_dict['cost_value']) if asset_dict['cost_value'] is not None else 0.0,
+                    'profit': float(asset_dict['profit']) if asset_dict['profit'] is not None else 0.0
                 })
             
             # 合計を計算
@@ -114,7 +128,7 @@ def manage_assets(asset_type):
                                  constants=constants)
     
     except Exception as e:
-        logger.error(f"❌ Error loading assets: {e}", exc_info=True)
+        logger.error(f"❌ Error loading assets for {asset_type}: {e}", exc_info=True)
         flash('資産の読み込み中にエラーが発生しました', 'error')
         return redirect(url_for('dashboard.dashboard'))
 
@@ -140,9 +154,10 @@ def add_asset():
         price = 0.0
         name = symbol
         
-        if asset_type != 'cash':
+        if asset_type not in ['cash', 'insurance']:
             try:
                 price_data = price_service.fetch_price({
+                    'id': 0,  # 新規追加なのでIDは0
                     'asset_type': asset_type,
                     'symbol': symbol
                 })
@@ -198,10 +213,13 @@ def edit_asset(asset_id):
                 flash('資産が見つかりません', 'error')
                 return redirect(url_for('dashboard.dashboard'))
             
-            return render_template('edit_asset.html', asset=dict(asset), constants=constants)
+            # ✅ 修正: dict-likeオブジェクトを辞書に変換
+            asset_dict = dict(asset) if hasattr(asset, 'keys') else {}
+            
+            return render_template('edit_asset.html', asset=asset_dict, constants=constants)
     
     except Exception as e:
-        logger.error(f"❌ Error loading asset: {e}", exc_info=True)
+        logger.error(f"❌ Error loading asset {asset_id}: {e}", exc_info=True)
         flash('資産の読み込み中にエラーが発生しました', 'error')
         return redirect(url_for('dashboard.dashboard'))
 
@@ -245,7 +263,7 @@ def update_asset():
         return redirect(url_for('dashboard.dashboard'))
     
     except Exception as e:
-        logger.error(f"❌ Error updating asset: {e}", exc_info=True)
+        logger.error(f"❌ Error updating asset {asset_id}: {e}", exc_info=True)
         flash('資産の更新に失敗しました', 'error')
         return redirect(url_for('dashboard.dashboard'))
 
@@ -275,7 +293,7 @@ def delete_asset():
         return jsonify({'success': True, 'message': '資産を削除しました'})
     
     except Exception as e:
-        logger.error(f"❌ Error deleting asset: {e}", exc_info=True)
+        logger.error(f"❌ Error deleting asset {asset_id}: {e}", exc_info=True)
         return jsonify({'success': False, 'message': '資産の削除に失敗しました'}), 500
 
 @assets_bp.route('/update_prices', methods=['POST'])
@@ -299,8 +317,16 @@ def update_prices():
             
             assets = c.fetchall()
         
+        if not assets:
+            return jsonify({'success': False, 'message': '更新する資産がありません'}), 400
+        
+        # ✅ 修正: 並列価格取得
         updated_prices = price_service.fetch_prices_parallel(assets)
         
+        if not updated_prices:
+            return jsonify({'success': False, 'message': '価格の取得に失敗しました'}), 500
+        
+        # データベース更新
         with db_manager.get_db() as conn:
             c = conn.cursor()
             
@@ -322,7 +348,7 @@ def update_prices():
         return jsonify({'success': True, 'message': f'{len(updated_prices)}件の価格を更新しました'})
     
     except Exception as e:
-        logger.error(f"❌ Error updating prices: {e}", exc_info=True)
+        logger.error(f"❌ Error updating prices for {asset_type}: {e}", exc_info=True)
         return jsonify({'success': False, 'message': '価格の更新に失敗しました'}), 500
 
 @assets_bp.route('/update_all_prices', methods=['POST'])
@@ -346,8 +372,18 @@ def update_all_prices():
             
             assets = c.fetchall()
         
+        if not assets:
+            flash('更新する資産がありません', 'warning')
+            return redirect(url_for('dashboard.dashboard'))
+        
+        # ✅ 修正: 並列価格取得
         updated_prices = price_service.fetch_prices_parallel(assets)
         
+        if not updated_prices:
+            flash('価格の取得に失敗しました', 'error')
+            return redirect(url_for('dashboard.dashboard'))
+        
+        # データベース更新
         with db_manager.get_db() as conn:
             c = conn.cursor()
             
