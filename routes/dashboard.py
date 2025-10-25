@@ -203,6 +203,8 @@ def get_dashboard_data(user_id):
             
             logger.info("📊 Calculating asset totals with day changes:")
             
+            # 前の部分は同じ...
+
             # 各資産タイプの計算
             jp_stats = get_asset_totals(assets_by_type['jp_stock'], 'jp_stock')
             us_stats = get_asset_totals(assets_by_type['us_stock'], 'us_stock')
@@ -212,17 +214,29 @@ def get_dashboard_data(user_id):
             investment_trust_stats = get_asset_totals(assets_by_type['investment_trust'], 'investment_trust')
             insurance_stats = get_asset_totals(assets_by_type['insurance'], 'insurance')
             
-            # 総資産
+            # ✅ 修正: 総資産（現金を含む）
             total_assets = (jp_stats['total'] + us_stats['total'] + cash_stats['total'] + 
                            gold_stats['total'] + crypto_stats['total'] + 
                            investment_trust_stats['total'] + insurance_stats['total'])
             
-            total_cost = (jp_stats['cost'] + us_stats['cost'] + cash_stats['cost'] + 
-                         gold_stats['cost'] + crypto_stats['cost'] + 
-                         investment_trust_stats['cost'] + insurance_stats['cost'])
+            # ✅ 修正: 損益計算（現金を除外）
+            total_cost_excluding_cash = (jp_stats['cost'] + us_stats['cost'] + 
+                                         gold_stats['cost'] + crypto_stats['cost'] + 
+                                         investment_trust_stats['cost'] + insurance_stats['cost'])
             
-            total_profit = total_assets - total_cost
-            total_profit_rate = (total_profit / total_cost * 100) if total_cost > 0 else 0.0
+            total_value_excluding_cash = (jp_stats['total'] + us_stats['total'] + 
+                                          gold_stats['total'] + crypto_stats['total'] + 
+                                          investment_trust_stats['total'] + insurance_stats['total'])
+            
+            # ✅ 修正: 損益は現金を除外して計算
+            total_profit = total_value_excluding_cash - total_cost_excluding_cash
+            total_profit_rate = (total_profit / total_cost_excluding_cash * 100) if total_cost_excluding_cash > 0 else 0.0
+            
+            logger.info(f"💰 Total Assets (with cash): ¥{total_assets:,.0f}")
+            logger.info(f"📊 Profit Calculation (excluding cash):")
+            logger.info(f"   Value: ¥{total_value_excluding_cash:,.0f}")
+            logger.info(f"   Cost: ¥{total_cost_excluding_cash:,.0f}")
+            logger.info(f"   Profit: ¥{total_profit:,.0f} ({total_profit_rate:+.2f}%)")
             
             # ✅ 修正: 総資産の前日比を計算
             total_day_change = 0.0
@@ -385,3 +399,4 @@ def dashboard():
     except Exception as e:
         logger.error(f"Error rendering dashboard: {e}", exc_info=True)
         return redirect(url_for('auth.login'))
+
