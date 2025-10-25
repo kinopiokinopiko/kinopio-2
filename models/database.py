@@ -45,7 +45,7 @@ class DatabaseManager:
     
     @contextmanager
     def get_db(self):
-        """データベース接続を取得"""
+        """データベース接続を取得（PostgreSQLは必ずRealDictCursorを使用）"""
         if self.use_postgres:
             if not self.pool:
                 raise RuntimeError("Database pool not initialized")
@@ -55,8 +55,37 @@ class DatabaseManager:
                 conn = self.pool.getconn()
                 conn.set_session(autocommit=False)
                 
-                logger.debug("✅ PostgreSQL connection acquired")
-                yield conn
+                # ✅ 修正: RealDictCursor用のカスタムコネクションクラスを作成
+                class DictConnection:
+                    """RealDictCursorを常に返すラッパー"""
+                    def __init__(self, real_conn):
+                        self._conn = real_conn
+                    
+                    def cursor(self, *args, **kwargs):
+                        """常にRealDictCursorを返す"""
+                        return self._conn.cursor(cursor_factory=RealDictCursor)
+                    
+                    def commit(self):
+                        return self._conn.commit()
+                    
+                    def rollback(self):
+                        return self._conn.rollback()
+                    
+                    def close(self):
+                        return self._conn.close()
+                    
+                    def __enter__(self):
+                        return self
+                    
+                    def __exit__(self, exc_type, exc_val, exc_tb):
+                        if exc_type:
+                            self.rollback()
+                        return False
+                
+                wrapped_conn = DictConnection(conn)
+                logger.debug("✅ PostgreSQL connection with RealDictCursor wrapper")
+                
+                yield wrapped_conn
                 
             except Exception as e:
                 if conn:
@@ -67,6 +96,7 @@ class DatabaseManager:
                 if conn:
                     self.pool.putconn(conn)
         else:
+            # SQLite
             conn = sqlite3.connect('portfolio.db')
             conn.row_factory = sqlite3.Row
             try:
@@ -78,19 +108,12 @@ class DatabaseManager:
             finally:
                 conn.close()
     
-    def get_cursor(self, conn):
-        """✅ 新規追加: 適切なカーソルを取得するヘルパーメソッド"""
-        if self.use_postgres:
-            return conn.cursor(cursor_factory=RealDictCursor)
-        else:
-            return conn.cursor()
-    
     def init_database(self):
         """データベーススキーマを初期化"""
         logger.info("📊 Initializing database schema...")
         
         with self.get_db() as conn:
-            c = self.get_cursor(conn)
+            c = conn.cursor()
             
             if self.use_postgres:
                 self._init_postgres(c, conn)
@@ -166,14 +189,13 @@ class DatabaseManager:
             
             if not existing_demo:
                 demo_hash = generate_password_hash('demo123')
-                logger.info(f"🔐 Creating demo user (hash: {demo_hash[:30]}...)")
+                logger.info(f"🔐 Creating demo user")
                 cursor.execute("INSERT INTO users (username, password_hash) VALUES (%s, %s)",
                              ('demo', demo_hash))
                 conn.commit()
                 logger.info("✅ Demo user created: demo/demo123")
             else:
                 logger.info(f"ℹ️ Demo user already exists (ID: {existing_demo['id']})")
-                logger.info(f"🔑 Demo user hash preview: {existing_demo['password_hash'][:50]}...")
             
             logger.info("✅ PostgreSQL database initialized successfully")
         
