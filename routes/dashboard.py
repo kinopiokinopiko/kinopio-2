@@ -20,11 +20,8 @@ def get_dashboard_data(user_id):
     """ダッシュボード用データを取得"""
     try:
         with db_manager.get_db() as conn:
-            if db_manager.use_postgres:
-                from psycopg2.extras import RealDictCursor
-                c = conn.cursor(cursor_factory=RealDictCursor)
-            else:
-                c = conn.cursor()
+            # ✅ 修正: db_manager.get_cursor()を使用
+            c = db_manager.get_cursor(conn)
             
             # 全資産を取得
             if db_manager.use_postgres:
@@ -50,7 +47,7 @@ def get_dashboard_data(user_id):
                     asset_dict = dict(asset) if hasattr(asset, 'keys') else asset
                     assets_by_type[asset_dict['asset_type']].append(asset_dict)
             
-            # ✅ 修正: 直近2日分の履歴データを取得（降順で取得）
+            # ✅ 修正: 直近2日分の履歴データを取得
             if db_manager.use_postgres:
                 c.execute('''SELECT record_date, 
                                    jp_stock_value, us_stock_value, cash_value, 
@@ -77,8 +74,8 @@ def get_dashboard_data(user_id):
             yesterday_data = None
             
             if recent_records and len(recent_records) >= 2:
-                today_data = recent_records[0]      # 最新（今日）
-                yesterday_data = recent_records[1]  # 2番目に新しい（昨日）
+                today_data = recent_records[0]
+                yesterday_data = recent_records[1]
                 logger.info(f"📊 Today: {today_data['record_date']}, Yesterday: {yesterday_data['record_date']}")
             elif recent_records and len(recent_records) == 1:
                 today_data = recent_records[0]
@@ -95,7 +92,7 @@ def get_dashboard_data(user_id):
                 logger.warning(f"Failed to get USD/JPY rate: {e}")
                 usd_jpy = 150.0
             
-            # ✅ 修正: 現在の資産値を計算する関数
+            # 現在の資産値を計算する関数
             def calculate_current_value(assets, asset_type):
                 """現在の資産値を計算"""
                 total = 0.0
@@ -118,7 +115,7 @@ def get_dashboard_data(user_id):
                 
                 return total
             
-            # ✅ 修正: 前日比を計算する関数
+            # 前日比を計算する関数
             def calculate_day_change(current_value, asset_type):
                 """前日比を計算"""
                 if not yesterday_data:
@@ -138,10 +135,7 @@ def get_dashboard_data(user_id):
                 if not field_name:
                     return 0.0, 0.0
                 
-                # 昨日の値を取得
                 yesterday_value = safe_get(yesterday_data, field_name, 0.0)
-                
-                # 前日比を計算
                 day_change = current_value - yesterday_value
                 day_change_rate = (day_change / yesterday_value * 100) if yesterday_value > 0 else 0.0
                 
@@ -159,10 +153,8 @@ def get_dashboard_data(user_id):
                     }
                 
                 try:
-                    # 現在の資産値を計算
                     total_value = calculate_current_value(assets, asset_type)
                     
-                    # コスト計算
                     cost_value = 0.0
                     for asset in assets:
                         quantity = float(asset.get('quantity', 0)) if isinstance(asset, dict) else float(asset['quantity'])
@@ -175,15 +167,12 @@ def get_dashboard_data(user_id):
                         elif asset_type == 'insurance':
                             cost_value += avg_cost
                         elif asset_type == 'cash':
-                            cost_value += 0  # 現金はコストなし
+                            cost_value += 0
                         else:
                             cost_value += quantity * avg_cost
                     
-                    # 損益計算
                     profit = total_value - cost_value
                     profit_rate = (profit / cost_value * 100) if cost_value > 0 else 0.0
-                    
-                    # 前日比を計算
                     day_change, day_change_rate = calculate_day_change(total_value, asset_type)
                     
                     return {
@@ -203,8 +192,6 @@ def get_dashboard_data(user_id):
             
             logger.info("📊 Calculating asset totals with day changes:")
             
-            # 前の部分は同じ...
-
             # 各資産タイプの計算
             jp_stats = get_asset_totals(assets_by_type['jp_stock'], 'jp_stock')
             us_stats = get_asset_totals(assets_by_type['us_stock'], 'us_stock')
@@ -214,12 +201,10 @@ def get_dashboard_data(user_id):
             investment_trust_stats = get_asset_totals(assets_by_type['investment_trust'], 'investment_trust')
             insurance_stats = get_asset_totals(assets_by_type['insurance'], 'insurance')
             
-            # ✅ 修正: 総資産（現金を含む）
             total_assets = (jp_stats['total'] + us_stats['total'] + cash_stats['total'] + 
                            gold_stats['total'] + crypto_stats['total'] + 
                            investment_trust_stats['total'] + insurance_stats['total'])
             
-            # ✅ 修正: 損益計算（現金を除外）
             total_cost_excluding_cash = (jp_stats['cost'] + us_stats['cost'] + 
                                          gold_stats['cost'] + crypto_stats['cost'] + 
                                          investment_trust_stats['cost'] + insurance_stats['cost'])
@@ -228,24 +213,19 @@ def get_dashboard_data(user_id):
                                           gold_stats['total'] + crypto_stats['total'] + 
                                           investment_trust_stats['total'] + insurance_stats['total'])
             
-            # ✅ 修正: 損益は現金を除外して計算
             total_profit = total_value_excluding_cash - total_cost_excluding_cash
             total_profit_rate = (total_profit / total_cost_excluding_cash * 100) if total_cost_excluding_cash > 0 else 0.0
             
             logger.info(f"💰 Total Assets (with cash): ¥{total_assets:,.0f}")
-            logger.info(f"📊 Profit Calculation (excluding cash):")
-            logger.info(f"   Value: ¥{total_value_excluding_cash:,.0f}")
-            logger.info(f"   Cost: ¥{total_cost_excluding_cash:,.0f}")
-            logger.info(f"   Profit: ¥{total_profit:,.0f} ({total_profit_rate:+.2f}%)")
+            logger.info(f"📊 Profit: ¥{total_profit:,.0f} ({total_profit_rate:+.2f}%)")
             
-            # ✅ 修正: 総資産の前日比を計算
             total_day_change = 0.0
             total_day_change_rate = 0.0
             if yesterday_data:
                 yesterday_total = safe_get(yesterday_data, 'total_value', 0.0)
                 total_day_change = total_assets - yesterday_total
                 total_day_change_rate = (total_day_change / yesterday_total * 100) if yesterday_total > 0 else 0.0
-                logger.info(f"  Total: current=¥{total_assets:,.0f}, yesterday=¥{yesterday_total:,.0f}, change=¥{total_day_change:,.0f} ({total_day_change_rate:+.2f}%)")
+                logger.info(f"  Total change: ¥{total_day_change:,.0f} ({total_day_change_rate:+.2f}%)")
             
             # チャート用データ
             chart_data = {
@@ -261,7 +241,7 @@ def get_dashboard_data(user_id):
                 ]
             }
             
-            # 履歴データ取得（過去365日）
+            # 履歴データ取得
             if db_manager.use_postgres:
                 c.execute('''SELECT record_date, jp_stock_value, us_stock_value, cash_value, 
                                    gold_value, crypto_value, investment_trust_value, 
@@ -281,7 +261,6 @@ def get_dashboard_data(user_id):
             
             history = c.fetchall() or []
             
-            # 日付文字列に変換
             def format_date(date_obj):
                 if hasattr(date_obj, 'strftime'):
                     return date_obj.strftime('%m/%d')
@@ -362,11 +341,7 @@ def dashboard():
     
     try:
         with db_manager.get_db() as conn:
-            if db_manager.use_postgres:
-                from psycopg2.extras import RealDictCursor
-                c = conn.cursor(cursor_factory=RealDictCursor)
-            else:
-                c = conn.cursor()
+            c = db_manager.get_cursor(conn)
             
             if db_manager.use_postgres:
                 c.execute('SELECT username FROM users WHERE id = %s', (user_id,))
@@ -399,4 +374,3 @@ def dashboard():
     except Exception as e:
         logger.error(f"Error rendering dashboard: {e}", exc_info=True)
         return redirect(url_for('auth.login'))
-
