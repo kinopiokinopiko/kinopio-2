@@ -175,7 +175,7 @@
     .asset-card {
         background: white;
         border-radius: 16px;
-        padding: 20px;
+        padding: 16px;
         cursor: pointer;
         transition: all 0.2s ease;
         text-decoration: none;
@@ -184,6 +184,7 @@
         flex-direction: column;
         box-shadow: 0 2px 8px rgba(0,0,0,0.08);
         border: 1px solid #f0f0f0;
+        min-height: 200px;
     }
     
     .asset-card:hover {
@@ -198,48 +199,52 @@
     .card-header {
         display: flex;
         align-items: flex-start;
-        gap: 12px;
+        gap: 10px;
         margin-bottom: 16px;
     }
     
     .card-icon {
-        width: 60px;
-        height: 60px;
-        border-radius: 16px;
+        width: 56px;
+        height: 56px;
+        border-radius: 14px;
         display: flex;
         align-items: center;
         justify-content: center;
-        font-size: 28px;
+        font-size: 26px;
         flex-shrink: 0;
     }
     
     .card-badges {
         display: flex;
         flex-direction: column;
-        gap: 8px;
+        gap: 4px;
         flex: 1;
+        min-width: 0;
     }
     
     .badge-item {
         display: flex;
         align-items: center;
-        gap: 6px;
+        gap: 4px;
+        flex-wrap: wrap;
     }
     
     .badge-label {
-        font-size: 11px;
+        font-size: 10px;
         color: #999;
         font-weight: 600;
         white-space: nowrap;
+        flex-shrink: 0;
     }
     
     .badge-percentage {
-        padding: 4px 12px;
-        border-radius: 12px;
-        font-size: 13px;
+        padding: 3px 8px;
+        border-radius: 10px;
+        font-size: 11px;
         font-weight: 700;
         color: white;
         white-space: nowrap;
+        flex-shrink: 0;
     }
     
     .badge-percentage.positive {
@@ -251,12 +256,11 @@
     }
     
     .badge-amount {
-        font-size: 13px;
+        font-size: 11px;
         font-weight: 700;
-        margin-top: 2px;
         display: block;
         width: 100%;
-        padding-left: 0;
+        word-break: break-all;
     }
     
     .card-body {
@@ -265,14 +269,14 @@
     }
     
     .card-name {
-        font-size: 16px;
+        font-size: 14px;
         color: #666;
         margin-bottom: 8px;
         font-weight: 700;
     }
     
     .card-amount {
-        font-size: 26px;
+        font-size: 22px;
         font-weight: 700;
         color: #333;
         letter-spacing: -0.5px;
@@ -403,6 +407,37 @@
             grid-template-columns: repeat(3, 1fr);
         }
         
+        .asset-card {
+            padding: 20px;
+        }
+        
+        .card-icon {
+            width: 70px;
+            height: 70px;
+            font-size: 32px;
+        }
+        
+        .badge-label {
+            font-size: 12px;
+        }
+        
+        .badge-percentage {
+            font-size: 14px;
+            padding: 5px 14px;
+        }
+        
+        .badge-amount {
+            font-size: 14px;
+        }
+        
+        .card-name {
+            font-size: 16px;
+        }
+        
+        .card-amount {
+            font-size: 26px;
+        }
+        
         .tab-btn {
             padding: 12px 20px;
             font-size: 15px;
@@ -424,25 +459,6 @@
         .info-amount {
             font-size: 40px;
         }
-        
-        .card-icon {
-            width: 70px;
-            height: 70px;
-            font-size: 32px;
-        }
-        
-        .badge-label {
-            font-size: 12px;
-        }
-        
-        .badge-percentage {
-            font-size: 14px;
-            padding: 5px 14px;
-        }
-        
-        .badge-amount {
-            font-size: 14px;
-        }
     }
     
     @media (min-width: 1024px) {
@@ -457,9 +473,9 @@
     
     @media (max-width: 480px) {
         .card-icon {
-            width: 50px;
-            height: 50px;
-            font-size: 24px;
+            width: 48px;
+            height: 48px;
+            font-size: 22px;
         }
         
         .badge-label {
@@ -467,16 +483,20 @@
         }
         
         .badge-percentage {
-            font-size: 11px;
-            padding: 3px 10px;
+            font-size: 10px;
+            padding: 2px 6px;
         }
         
         .badge-amount {
-            font-size: 12px;
+            font-size: 10px;
+        }
+        
+        .card-name {
+            font-size: 13px;
         }
         
         .card-amount {
-            font-size: 22px;
+            font-size: 20px;
         }
         
         .info-label {
@@ -517,4 +537,3 @@
 {% block scripts %}
 {% include 'components/dashboard_scripts.html' %}
 {% endblock %}
-
