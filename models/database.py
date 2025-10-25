@@ -45,7 +45,7 @@ class DatabaseManager:
     
     @contextmanager
     def get_db(self):
-        """データベース接続を取得（常にRealDictCursorを使用）"""
+        """データベース接続を取得"""
         if self.use_postgres:
             if not self.pool:
                 raise RuntimeError("Database pool not initialized")
@@ -55,18 +55,7 @@ class DatabaseManager:
                 conn = self.pool.getconn()
                 conn.set_session(autocommit=False)
                 
-                # ✅ 修正: コネクションにカーソルファクトリーを明示的に設定
-                original_cursor = conn.cursor
-                
-                def cursor_with_dict_factory(*args, **kwargs):
-                    """常にRealDictCursorを返すラッパー"""
-                    if 'cursor_factory' not in kwargs:
-                        kwargs['cursor_factory'] = RealDictCursor
-                    return original_cursor(*args, **kwargs)
-                
-                conn.cursor = cursor_with_dict_factory
-                
-                logger.debug("✅ PostgreSQL connection with RealDictCursor wrapper")
+                logger.debug("✅ PostgreSQL connection acquired")
                 yield conn
                 
             except Exception as e:
@@ -76,8 +65,6 @@ class DatabaseManager:
                 raise
             finally:
                 if conn:
-                    # カーソルファクトリーを元に戻す
-                    conn.cursor = original_cursor
                     self.pool.putconn(conn)
         else:
             conn = sqlite3.connect('portfolio.db')
@@ -91,12 +78,19 @@ class DatabaseManager:
             finally:
                 conn.close()
     
+    def get_cursor(self, conn):
+        """✅ 新規追加: 適切なカーソルを取得するヘルパーメソッド"""
+        if self.use_postgres:
+            return conn.cursor(cursor_factory=RealDictCursor)
+        else:
+            return conn.cursor()
+    
     def init_database(self):
         """データベーススキーマを初期化"""
         logger.info("📊 Initializing database schema...")
         
         with self.get_db() as conn:
-            c = conn.cursor()
+            c = self.get_cursor(conn)
             
             if self.use_postgres:
                 self._init_postgres(c, conn)
