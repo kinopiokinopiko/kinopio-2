@@ -29,13 +29,9 @@ def login():
         
         try:
             with db_manager.get_db() as conn:
-                if db_manager.use_postgres:
-                    from psycopg2.extras import RealDictCursor
-                    c = conn.cursor(cursor_factory=RealDictCursor)
-                    logger.info("🔌 Using PostgreSQL for login")
-                else:
-                    c = conn.cursor()
-                    logger.info("🔌 Using SQLite for login")
+                # ✅ 修正: カーソル取得を統一（RealDictCursorは自動設定される）
+                c = conn.cursor()
+                logger.info(f"🔌 Using {'PostgreSQL' if db_manager.use_postgres else 'SQLite'} for login")
                 
                 # ユーザー検索
                 if db_manager.use_postgres:
@@ -46,19 +42,24 @@ def login():
                 user = c.fetchone()
                 
                 if user:
-                    logger.info(f"✅ User found: {username} (ID: {user['id']})")
-                    logger.info(f"🔑 Stored hash preview: {user['password_hash'][:50]}...")
+                    # ✅ 修正: 辞書アクセスを統一
+                    user_id = user['id']
+                    user_username = user['username']
+                    user_password_hash = user['password_hash']
+                    
+                    logger.info(f"✅ User found: {user_username} (ID: {user_id})")
+                    logger.info(f"🔑 Stored hash preview: {user_password_hash[:50]}...")
                     
                     # パスワード検証
-                    if check_password_hash(user['password_hash'], password):
-                        logger.info(f"✅ Password verified for user: {username}")
-                        session['user_id'] = user['id']
-                        session['username'] = user['username']
-                        logger.info(f"✅ Session created for user: {username}")
-                        flash(f'{username}さん、ようこそ！', 'success')
+                    if check_password_hash(user_password_hash, password):
+                        logger.info(f"✅ Password verified for user: {user_username}")
+                        session['user_id'] = user_id
+                        session['username'] = user_username
+                        logger.info(f"✅ Session created for user: {user_username}")
+                        flash(f'{user_username}さん、ようこそ！', 'success')
                         return redirect(url_for('dashboard.dashboard'))
                     else:
-                        logger.warning(f"❌ Invalid password for user: {username}")
+                        logger.warning(f"❌ Invalid password for user: {user_username}")
                         flash('ユーザー名またはパスワードが間違っています', 'error')
                 else:
                     logger.warning(f"❌ User not found: {username}")
@@ -79,7 +80,7 @@ def register():
     if request.method == 'POST':
         username = request.form.get('username', '').strip()
         password = request.form.get('password', '')
-        password_confirm = request.form.get('password_confirm', '')
+        password_confirm = request.form.get('confirm_password', '')
         
         logger.info(f"📝 Registration attempt for user: {username}")
         
@@ -102,11 +103,7 @@ def register():
         
         try:
             with db_manager.get_db() as conn:
-                if db_manager.use_postgres:
-                    from psycopg2.extras import RealDictCursor
-                    c = conn.cursor(cursor_factory=RealDictCursor)
-                else:
-                    c = conn.cursor()
+                c = conn.cursor()
                 
                 # ユーザー名の重複チェック
                 if db_manager.use_postgres:
