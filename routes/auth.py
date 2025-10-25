@@ -20,6 +20,8 @@ def login():
         password = request.form.get('password', '')
         
         logger.info(f"🔐 Login attempt for user: {username}")
+        logger.info(f"🔐 Request method: {request.method}")
+        logger.info(f"🔐 Form data keys: {list(request.form.keys())}")
         
         # 入力検証
         if not username or not password:
@@ -29,7 +31,6 @@ def login():
         
         try:
             with db_manager.get_db() as conn:
-                # ✅ 修正: get_cursor()を使用
                 c = db_manager.get_cursor(conn)
                 logger.info(f"🔌 Using {'PostgreSQL' if db_manager.use_postgres else 'SQLite'} for login")
                 
@@ -42,7 +43,6 @@ def login():
                 user = c.fetchone()
                 
                 if user:
-                    # 辞書アクセスを統一
                     user_id = user['id']
                     user_username = user['username']
                     user_password_hash = user['password_hash']
@@ -53,11 +53,27 @@ def login():
                     # パスワード検証
                     if check_password_hash(user_password_hash, password):
                         logger.info(f"✅ Password verified for user: {user_username}")
+                        
+                        # セッションをクリアしてから設定
+                        session.clear()
+                        session.permanent = True
                         session['user_id'] = user_id
                         session['username'] = user_username
+                        
                         logger.info(f"✅ Session created for user: {user_username}")
+                        logger.info(f"✅ Session data: {dict(session)}")
+                        
                         flash(f'{user_username}さん、ようこそ！', 'success')
-                        return redirect(url_for('dashboard.dashboard'))
+                        
+                        # リダイレクト
+                        redirect_url = url_for('dashboard.dashboard')
+                        logger.info(f"✅ Redirecting to: {redirect_url}")
+                        
+                        response = redirect(redirect_url)
+                        logger.info(f"✅ Response status: {response.status}")
+                        logger.info(f"✅ Response headers: {dict(response.headers)}")
+                        
+                        return response
                     else:
                         logger.warning(f"❌ Invalid password for user: {user_username}")
                         flash('ユーザー名またはパスワードが間違っています', 'error')
@@ -71,7 +87,12 @@ def login():
         
         return render_template('login.html')
     
-    # GET リクエスト
+    # GET リクエスト - 既にログイン済みならダッシュボードへ
+    if 'user_id' in session:
+        logger.info(f"✅ User already logged in, redirecting to dashboard")
+        return redirect(url_for('dashboard.dashboard'))
+    
+    logger.info("📍 Rendering login page")
     return render_template('login.html')
 
 @auth_bp.route('/register', methods=['GET', 'POST'])
