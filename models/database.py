@@ -36,7 +36,7 @@ class DatabaseManager:
                 logger.info("🔌 Creating PostgreSQL connection pool...")
                 self.pool = pg_pool.SimpleConnectionPool(
                     1,  # minconn
-                    20, # maxconn（10→20に増加）
+                    20, # maxconn
                     self.config.DATABASE_URL,
                     connect_timeout=10
                 )
@@ -68,12 +68,12 @@ class DatabaseManager:
                 # プールから接続を取得
                 conn = self.pool.getconn()
                 
-                # ✅ 修正: トランザクション状態をリセット
+                # ✅ トランザクション状態をリセット（rollbackのみ）
                 if conn.get_transaction_status() != extensions.TRANSACTION_STATUS_IDLE:
                     try:
                         conn.rollback()
-                    except Exception:
-                        pass
+                    except Exception as e:
+                        logger.warning(f"⚠️ Rollback during connection reset: {e}")
                 
                 # 接続が有効かテスト
                 if not self._test_connection(conn):
@@ -84,9 +84,7 @@ class DatabaseManager:
                         pass
                     raise psycopg2.OperationalError("Connection test failed")
                 
-                # ✅ 修正: autocommitをFalseに設定（set_sessionを使わない）
-                conn.autocommit = False
-                
+                # ✅ autocommit設定を削除（デフォルトのまま使用）
                 logger.debug(f"✅ Connection acquired on attempt {attempt + 1}")
                 return conn
             
@@ -96,7 +94,7 @@ class DatabaseManager:
                 
                 if attempt < max_retries - 1:
                     # バックオフ付きでリトライ
-                    sleep_time = 0.5 * (2 ** attempt)  # 0.5秒, 1秒, 2秒
+                    sleep_time = 0.5 * (2 ** attempt)
                     logger.info(f"⏳ Retrying in {sleep_time} seconds...")
                     time.sleep(sleep_time)
                     
@@ -172,6 +170,12 @@ class DatabaseManager:
                                 self.rollback()
                             except Exception as e:
                                 logger.warning(f"⚠️ Error during rollback in __exit__: {e}")
+                        else:
+                            # ✅ 正常終了時はコミット
+                            try:
+                                self.commit()
+                            except Exception as e:
+                                logger.error(f"❌ Error during commit in __exit__: {e}")
                         self.close()
                         return False
                 
@@ -226,10 +230,7 @@ class DatabaseManager:
         try:
             with self.get_db() as conn:
                 c = conn.cursor()
-                if self.use_postgres:
-                    c.execute('SELECT 1')
-                else:
-                    c.execute('SELECT 1')
+                c.execute('SELECT 1')
                 result = c.fetchone()
                 return result is not None
         except Exception as e:
@@ -251,6 +252,7 @@ class DatabaseManager:
                     else:
                         self._init_sqlite(c, conn)
                     
+                    # ✅ 明示的にコミット
                     conn.commit()
                     logger.info("✅ Database schema initialized successfully")
                     return
@@ -258,7 +260,7 @@ class DatabaseManager:
             except Exception as e:
                 logger.error(f"❌ Database initialization attempt {attempt + 1}/{max_retries} failed: {e}")
                 if attempt < max_retries - 1:
-                    time.sleep(2 ** attempt)  # 1秒, 2秒, 4秒
+                    time.sleep(2 ** attempt)
                 else:
                     raise
     
