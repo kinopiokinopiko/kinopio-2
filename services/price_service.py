@@ -149,7 +149,7 @@ class PriceService:
         
         except concurrent.futures.TimeoutError:
             logger.warning(f"⚠️ Overall timeout in parallel fetch, returning {len(updated_prices)} results")
-            return updated_prices  # 取得できた分だけ返す
+            return updated_prices
         
         except Exception as e:
             logger.error(f"❌ Error in parallel fetch: {e}", exc_info=True)
@@ -436,41 +436,111 @@ class PriceService:
             raise
     
     def _fetch_investment_trust(self, symbol):
-        """投資信託の価格を取得（楽天証券）"""
+        """投資信託の価格を取得（楽天証券 - 旧コードと同じ）"""
         try:
+            # 銘柄コードマッピング（旧コードと同じ）
             symbol_map = {
                 'S&P500': 'JP90C000GKC6',
                 'オルカン': 'JP90C000H1T1',
                 'FANG+': 'JP90C000FZD4'
             }
             
-            code = symbol_map.get(symbol, symbol)
-            url = f"https://www.rakuten-sec.co.jp/web/fund/detail/?ID={code}"
+            if symbol not in symbol_map:
+                logger.warning(f"Unsupported investment trust symbol: {symbol}")
+                raise ValueError(f"Unsupported investment trust: {symbol}")
             
-            response = self.session.get(url, timeout=10)
-            response.raise_for_status()
+            fund_id = symbol_map[symbol]
+            url = f"https://www.rakuten-sec.co.jp/web/fund/detail/?ID={fund_id}"
+            
+            headers = {
+                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
+            }
+            
+            response = self.session.get(url, headers=headers, timeout=10)
             response.encoding = response.apparent_encoding
-            
             soup = BeautifulSoup(response.text, 'html.parser')
             
-            # "基準価額"を含むthタグを探す
-            th = soup.find('th', string=re.compile(r'\s*基準価額\s*'))
+            # ヘルパー関数: 文字列から数値を抽出
+            def extract_number_from_string(s):
+                if not s:
+                    return None
+                # カンマ、空白、全角スペースを削除
+                s = s.replace(',', '').replace(' ', '').replace('\xa0', '').replace('円', '').replace('　', '')
+                # 数値パターンを検索
+                m = re.search(r'([+-]?\d+(?:\.\d+)?)', s)
+                if m:
+                    try:
+                        return float(m.group(1))
+                    except Exception:
+                        return None
+                return None
             
+            # ✅ 方法1: "基準価額"を含むthタグを探す
+            th = soup.find('th', string=re.compile(r'\s*基準価額\s*'))
             if th:
                 td = th.find_next_sibling('td')
                 if td:
                     price_text = td.get_text(strip=True)
-                    # 正規表現で数値のみを抽出
-                    numeric_text = re.sub(r'[^0-9.]', '', price_text)
-                    if numeric_text:
-                        try:
-                            price = float(numeric_text)
-                            if 1000 <= price <= 100000:  # 妥当な範囲
-                                logger.info(f"✅ Investment trust: {symbol} = ¥{price:,.2f}")
-                                return round(price, 2), symbol
-                        except ValueError:
-                            pass
+                    price = extract_number_from_string(price_text)
+                    if price is not None and 1000 <= price <= 100000:  # 妥当な範囲
+                        logger.info(f"✅ Investment trust (基準価額): {symbol} = ¥{price:,.2f}")
+                        return round(price, 2), symbol
             
+            # ✅ 方法2: class="value"やclass="nav"を探す
+            selectors = [
+                'span.value',
+                'dd.fund-detail-nav',
+                'span[class*="nav"]',
+                'div[class*="price"] span',
+                'td.alR',  # 楽天証券の基準価額
+                '.price',
+                '.nav'
+            ]
+            
+            for selector in selectors:
+                try:
+                    elements = soup.select(selector)
+                    for elem in elements:
+                        text = elem.get_text(strip=True)
+                        price = extract_number_from_string(text)
+                        if price is not None and 1000 <= price <= 100000:
+                            logger.info(f"✅ Investment trust (selector {selector}): {symbol} = ¥{price:,.2f}")
+                            return round(price, 2), symbol
+                except Exception:
+                    continue
+            
+            # ✅ 方法3: テーブルの中から「基準価額」を探す
+            tables = soup.find_all('table')
+            for table in tables:
+                rows = table.find_all('tr')
+                for row in rows:
+                    cells = row.find_all(['th', 'td'])
+                    for i, cell in enumerate(cells):
+                        cell_text = cell.get_text(strip=True)
+                        if '基準価額' in cell_text and i + 1 < len(cells):
+                            next_cell = cells[i + 1]
+                            price_text = next_cell.get_text(strip=True)
+                            price = extract_number_from_string(price_text)
+                            if price is not None and 1000 <= price <= 100000:
+                                logger.info(f"✅ Investment trust (table): {symbol} = ¥{price:,.2f}")
+                                return round(price, 2), symbol
+            
+            # ✅ 方法4: ページ全体から数値を探す（最後の手段）
+            all_text = soup.get_text()
+            # "基準価額"の後ろから数値を探す
+            idx = all_text.find('基準価額')
+            if idx != -1:
+                snippet = all_text[idx:idx + 500]
+                # "円"の前の数値を探す
+                matches = re.findall(r'([0-9,]+(?:\.[0-9]+)?)\s*円', snippet)
+                for match in matches:
+                    price = extract_number_from_string(match)
+                    if price is not None and 1000 <= price <= 100000:
+                        logger.info(f"✅ Investment trust (text search): {symbol} = ¥{price:,.2f}")
+                        return round(price, 2), symbol
+            
+            # すべて失敗
+            logger.warning(f"⚠️ Could not find the price for {symbol} on the page. HTML structure may have changed.")
             raise ValueError(f"Investment trust price not found for {symbol}")
         
         except Exception as e:
@@ -511,4 +581,3 @@ class PriceService:
 # グローバルインスタンス
 from config import get_config
 price_service = PriceService(get_config())
-
