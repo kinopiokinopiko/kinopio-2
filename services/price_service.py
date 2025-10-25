@@ -281,76 +281,155 @@ class PriceService:
             raise
     
     def _fetch_crypto(self, symbol):
-        """暗号資産の価格を取得（複数APIフォールバック）"""
+        """暗号資産の価格を取得（みんかぶ暗号資産 - 旧コードと同じ）"""
         try:
-            # ✅ 方法1: Binance Public API（無料・制限緩い）
-            try:
-                symbol_map = {
-                    'BTC': 'BTCUSDT',
-                    'ETH': 'ETHUSDT',
-                    'XRP': 'XRPUSDT',
-                    'DOGE': 'DOGEUSDT'
-                }
-                
-                pair = symbol_map.get(symbol.upper())
-                if not pair:
-                    raise ValueError(f"Unsupported crypto: {symbol}")
-                
-                url = f"https://api.binance.com/api/v3/ticker/price?symbol={pair}"
-                response = self.session.get(url, timeout=10)
-                response.raise_for_status()
-                
-                data = response.json()
-                usd_price = float(data['price'])
-                
-                # USD→JPY変換
-                jpy_rate = self.get_usd_jpy_rate()
-                price = usd_price * jpy_rate
-                
-                name_map = {
-                    'BTC': 'ビットコイン',
-                    'ETH': 'イーサリアム',
-                    'XRP': 'リップル',
-                    'DOGE': 'ドージコイン'
-                }
-                name = name_map.get(symbol.upper(), symbol)
-                
-                logger.info(f"✅ Crypto from Binance: {symbol} = ${usd_price:.2f} (¥{price:,.0f})")
-                return round(price, 2), name
+            symbol = (symbol or '').upper()
             
-            except Exception as binance_error:
-                logger.warning(f"⚠️ Binance API failed for {symbol}: {binance_error}")
-                
-                # ✅ 方法2: CoinCap API（フォールバック）
-                symbol_map = {
-                    'BTC': 'bitcoin',
-                    'ETH': 'ethereum',
-                    'XRP': 'ripple',
-                    'DOGE': 'dogecoin'
-                }
-                
-                coin_id = symbol_map.get(symbol.upper())
-                url = f"https://api.coincap.io/v2/assets/{coin_id}"
-                
-                response = self.session.get(url, timeout=10)
-                response.raise_for_status()
-                
-                data = response.json()['data']
-                usd_price = float(data['priceUsd'])
-                
-                jpy_rate = self.get_usd_jpy_rate()
-                price = usd_price * jpy_rate
-                
-                name_map = {
-                    'BTC': 'ビットコイン',
-                    'ETH': 'イーサリアム',
-                    'XRP': 'リップル',
-                    'DOGE': 'ドージコイン'
-                }
-                name = name_map.get(symbol.upper(), symbol)
-                
-                logger.info(f"✅ Crypto from CoinCap: {symbol} = ${usd_price:.2f} (¥{price:,.0f})")
-                return round(price, 2), name
+            # サポートされている銘柄チェック
+            supported_symbols = ['BTC', 'ETH', 'XRP', 'DOGE']
+            if symbol not in supported_symbols:
+                logger.warning(f"Unsupported crypto symbol requested: {symbol}")
+                raise ValueError(f"Unsupported crypto: {symbol}")
+            
+            url = f"https://cc.minkabu.jp/pair/{symbol}_JPY"
+            headers = {
+                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
+            }
+            
+            response = self.session.get(url, headers=headers, timeout=10)
+            response.encoding = response.apparent_encoding
+            text = response.text
+            
+            # ヘルパー関数: 文字列から数値を抽出
+            def extract_number_from_string(s):
+                if not s:
+                    return None
+                # カンマと空白を削除
+                s = s.replace(',', '').replace(' ', '').replace('\xa0', '')
+                # 数値パターンを検索
+                m = re.search(r'([+-]?\d+(?:\.\d+)?(?:[eE][+-]?\d+)?)', s)
+                if m:
+                    try:
+                        return float(m.group(1))
+                    except Exception:
+                        return None
+                return None
+            
+            # ✅ 方法1: JSON-likeフィールドから価格を抽出
+            json_matches = re.findall(r'"(?:last|price|lastPrice|close|current|ltp)"\s*:\s*"?([0-9\.,Ee+\-]+)"?', text)
+            if json_matches:
+                for jm in json_matches:
+                    val = extract_number_from_string(jm)
+                    if val is not None and val > 0:
+                        logger.debug(f"Found price in JSON-like field: {jm} -> {val}")
+                        name_map = {
+                            'BTC': 'ビットコイン',
+                            'ETH': 'イーサリアム',
+                            'XRP': 'リップル',
+                            'DOGE': 'ドージコイン'
+                        }
+                        name = name_map.get(symbol, symbol)
+                        logger.info(f"✅ Crypto from みんかぶ (JSON): {symbol} = ¥{val:,.2f}")
+                        return round(val, 2), name
+            
+            # ✅ 方法2: 「現在値」の近くから価格を抽出
+            idx = text.find('現在値')
+            if idx != -1:
+                snippet = text[idx: idx + 700]
+                m = re.search(r'([0-9]{1,3}(?:,[0-9]{3})*(?:\.\d+)?)\s*円', snippet)
+                if m:
+                    val = extract_number_from_string(m.group(1))
+                    if val is not None and val > 0:
+                        name_map = {
+                            'BTC': 'ビットコイン',
+                            'ETH': 'イーサリアム',
+                            'XRP': 'リップル',
+                            'DOGE': 'ドージコイン'
+                        }
+                        name = name_map.get(symbol, symbol)
+                        logger.info(f"✅ Crypto from みんかぶ (現在値): {symbol} = ¥{val:,.2f}")
+                        return round(val, 2), name
+            
+            # ✅ 方法3: data-price属性から抽出
+            m = re.search(r'data-price=["\']([0-9\.,Ee+\-]+)["\']', text)
+            if m:
+                val = extract_number_from_string(m.group(1))
+                if val is not None and val > 0:
+                    name_map = {
+                        'BTC': 'ビットコイン',
+                        'ETH': 'イーサリアム',
+                        'XRP': 'リップル',
+                        'DOGE': 'ドージコイン'
+                    }
+                    name = name_map.get(symbol, symbol)
+                    logger.info(f"✅ Crypto from みんかぶ (data-price): {symbol} = ¥{val:,.2f}")
+                    return round(val, 2), name
+            
+            # ✅ 方法4: BeautifulSoupでCSSセレクタから抽出
+            soup = BeautifulSoup(text, 'html.parser')
+            selectors = [
+                'div.pairPrice', '.pairPrice', '.pair_price', 'div.priceWrap', 
+                'div.kv', 'span.yen', 'div.stock_price span.yen', 'p.price', 
+                'span.price', 'div.price', 'span.value', 'div.value', 'strong', 'b'
+            ]
+            
+            for sel in selectors:
+                try:
+                    tag = soup.select_one(sel)
+                    if tag:
+                        txt = tag.get_text(' ', strip=True)
+                        val = extract_number_from_string(txt)
+                        if val is not None and val > 0:
+                            logger.debug(f"Found price by selector {sel}: {txt} -> {val}")
+                            name_map = {
+                                'BTC': 'ビットコイン',
+                                'ETH': 'イーサリアム',
+                                'XRP': 'リップル',
+                                'DOGE': 'ドージコイン'
+                            }
+                            name = name_map.get(symbol, symbol)
+                            logger.info(f"✅ Crypto from みんかぶ (selector {sel}): {symbol} = ¥{val:,.2f}")
+                            return round(val, 2), name
+                except Exception:
+                    continue
+            
+            # ✅ 方法5: 「円」という文字列の前の数値を抽出
+            matches = re.findall(r'([0-9]{1,3}(?:,[0-9]{3})*(?:\.\d+)?)\s*円', text)
+            for num in matches:
+                val = extract_number_from_string(num)
+                if val is not None and val > 0:
+                    name_map = {
+                        'BTC': 'ビットコイン',
+                        'ETH': 'イーサリアム',
+                        'XRP': 'リップル',
+                        'DOGE': 'ドージコイン'
+                    }
+                    name = name_map.get(symbol, symbol)
+                    logger.info(f"✅ Crypto from みんかぶ (円): {symbol} = ¥{val:,.2f}")
+                    return round(val, 2), name
+            
+            # ✅ 方法6: 科学的記数法（1.23e+6など）
+            m2 = re.search(r'([0-9\.,]+[eE][+-]?\d+)', text)
+            if m2:
+                val = extract_number_from_string(m2.group(1))
+                if val is not None and val > 0:
+                    logger.debug(f"Found price by scientific notation: {m2.group(1)} -> {val}")
+                    name_map = {
+                        'BTC': 'ビットコイン',
+                        'ETH': 'イーサリアム',
+                        'XRP': 'リップル',
+                        'DOGE': 'ドージコイン'
+                    }
+                    name = name_map.get(symbol, symbol)
+                    logger.info(f"✅ Crypto from みんかぶ (scientific): {symbol} = ¥{val:,.2f}")
+                    return round(val, 2), name
+            
+            # すべて失敗した場合
+            logger.warning(f"⚠️ Failed to parse crypto price for {symbol}")
+            snippet = text[:1200].replace('\n', ' ')
+            logger.debug(f"HTML snippet:\n{snippet}\n--- end snippet ---")
+            
+            raise ValueError(f"Crypto price not found for {symbol}")
         
         except Exception as e:
             logger.error(f"❌ Error getting crypto {symbol}: {e}")
@@ -432,3 +511,4 @@ class PriceService:
 # グローバルインスタンス
 from config import get_config
 price_service = PriceService(get_config())
+
