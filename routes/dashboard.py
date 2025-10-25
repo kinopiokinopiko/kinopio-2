@@ -1,14 +1,8 @@
-# routes/dashboard.py
-
 from flask import Blueprint, render_template, session, redirect, url_for
 from datetime import datetime, timezone, timedelta
 from models import db_manager
 from utils import logger
 import json
-
-# ================================================================================
-# 📊 ダッシュボード関連
-# ================================================================================
 
 dashboard_bp = Blueprint('dashboard', __name__)
 
@@ -26,7 +20,6 @@ def get_dashboard_data(user_id):
     """ダッシュボード用データを取得"""
     try:
         with db_manager.get_db() as conn:
-            # PostgreSQL/SQLiteの統一インターフェース
             if db_manager.use_postgres:
                 from psycopg2.extras import RealDictCursor
                 c = conn.cursor(cursor_factory=RealDictCursor)
@@ -57,33 +50,43 @@ def get_dashboard_data(user_id):
                     asset_dict = dict(asset) if hasattr(asset, 'keys') else asset
                     assets_by_type[asset_dict['asset_type']].append(asset_dict)
             
-            # ✅ 修正: 今日と昨日の資産履歴を両方取得
+            # ✅ 修正: 直近2日分の履歴データを取得
             jst = timezone(timedelta(hours=9))
             today = datetime.now(jst).date()
-            yesterday = today - timedelta(days=1)
             
-            # 今日のスナップショット
             if db_manager.use_postgres:
                 c.execute('''SELECT * FROM asset_history 
-                            WHERE user_id = %s AND record_date = %s''', (user_id, today))
+                            WHERE user_id = %s 
+                            ORDER BY record_date DESC 
+                            LIMIT 2''', (user_id,))
             else:
                 c.execute('''SELECT * FROM asset_history 
-                            WHERE user_id = ? AND record_date = ?''', (user_id, today))
+                            WHERE user_id = ? 
+                            ORDER BY record_date DESC 
+                            LIMIT 2''', (user_id,))
             
-            today_snapshot = c.fetchone()
+            history_records = c.fetchall()
             
-            # 昨日のスナップショット
-            if db_manager.use_postgres:
-                c.execute('''SELECT * FROM asset_history 
-                            WHERE user_id = %s AND record_date = %s''', (user_id, yesterday))
-            else:
-                c.execute('''SELECT * FROM asset_history 
-                            WHERE user_id = ? AND record_date = ?''', (user_id, yesterday))
+            # 今日と昨日のデータを分離
+            today_snapshot = None
+            yesterday_snapshot = None
             
-            yesterday_snapshot = c.fetchone()
+            if history_records:
+                for record in history_records:
+                    record_date = record['record_date']
+                    if hasattr(record_date, 'date'):
+                        record_date = record_date.date()
+                    
+                    if str(record_date) == str(today):
+                        today_snapshot = record
+                    else:
+                        yesterday_snapshot = record
             
-            logger.info(f"📊 Today snapshot: {today_snapshot is not None}")
+            logger.info(f"📊 Today: {today}, Today snapshot: {today_snapshot is not None}")
             logger.info(f"📊 Yesterday snapshot: {yesterday_snapshot is not None}")
+            
+            if yesterday_snapshot:
+                logger.info(f"📊 Yesterday total: {safe_get(yesterday_snapshot, 'total_value', 0)}")
             
             # USD/JPY レート取得
             try:
@@ -128,12 +131,11 @@ def get_dashboard_data(user_id):
                     profit = total_value - cost_value
                     profit_rate = (profit / cost_value * 100) if cost_value > 0 else 0.0
                     
-                    # ✅ 修正: 前日比を昨日のスナップショットから計算
+                    # ✅ 修正: 昨日のスナップショットから前日の値を取得
                     day_change = 0.0
                     day_change_rate = 0.0
                     
                     if yesterday_snapshot:
-                        # 昨日の資産値を取得
                         field_map = {
                             'jp_stock': 'jp_stock_value',
                             'us_stock': 'us_stock_value',
@@ -150,7 +152,7 @@ def get_dashboard_data(user_id):
                             day_change = total_value - prev_val
                             day_change_rate = (day_change / prev_val * 100) if prev_val > 0 else 0.0
                             
-                            logger.info(f"📊 {asset_type}: current={total_value:.2f}, prev={prev_val:.2f}, change={day_change:.2f}")
+                            logger.info(f"📊 {asset_type}: current={total_value:.2f}, prev={prev_val:.2f}, change={day_change:.2f} ({day_change_rate:.2f}%)")
                     
                     return {
                         'total': total_value,
@@ -188,14 +190,14 @@ def get_dashboard_data(user_id):
             total_profit = total_assets - total_cost
             total_profit_rate = (total_profit / total_cost * 100) if total_cost > 0 else 0.0
             
-            # ✅ 修正: 総資産の前日比を昨日のスナップショットから計算
+            # ✅ 修正: 総資産の前日比
             total_day_change = 0.0
             total_day_change_rate = 0.0
             if yesterday_snapshot:
                 prev_total = safe_get(yesterday_snapshot, 'total_value', 0.0)
                 total_day_change = total_assets - prev_total
                 total_day_change_rate = (total_day_change / prev_total * 100) if prev_total > 0 else 0.0
-                logger.info(f"📊 Total: current={total_assets:.2f}, prev={prev_total:.2f}, change={total_day_change:.2f}")
+                logger.info(f"📊 Total: current={total_assets:.2f}, prev={prev_total:.2f}, change={total_day_change:.2f} ({total_day_change_rate:.2f}%)")
             
             # チャート用データ
             chart_data = {
@@ -211,7 +213,7 @@ def get_dashboard_data(user_id):
                 ]
             }
             
-            # 履歴データ取得
+            # 履歴データ取得（過去365日）
             if db_manager.use_postgres:
                 c.execute('''SELECT record_date, jp_stock_value, us_stock_value, cash_value, 
                                    gold_value, crypto_value, investment_trust_value, 
