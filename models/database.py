@@ -8,6 +8,7 @@ try:
     import psycopg2
     from psycopg2.extras import RealDictCursor
     from psycopg2 import pool as pg_pool
+    from psycopg2 import extensions
     POSTGRES_AVAILABLE = True
 except ImportError:
     POSTGRES_AVAILABLE = False
@@ -35,11 +36,9 @@ class DatabaseManager:
                 logger.info("🔌 Creating PostgreSQL connection pool...")
                 self.pool = pg_pool.SimpleConnectionPool(
                     1,  # minconn
-                    10, # maxconn
+                    20, # maxconn（10→20に増加）
                     self.config.DATABASE_URL,
-                    # ✅ 接続オプション追加
-                    connect_timeout=10,
-                    options='-c statement_timeout=300000'  # 5分タイムアウト
+                    connect_timeout=10
                 )
                 logger.info("✅ PostgreSQL connection pool initialized")
             except Exception as e:
@@ -69,6 +68,13 @@ class DatabaseManager:
                 # プールから接続を取得
                 conn = self.pool.getconn()
                 
+                # ✅ 修正: トランザクション状態をリセット
+                if conn.get_transaction_status() != extensions.TRANSACTION_STATUS_IDLE:
+                    try:
+                        conn.rollback()
+                    except Exception:
+                        pass
+                
                 # 接続が有効かテスト
                 if not self._test_connection(conn):
                     logger.warning(f"⚠️ Connection test failed on attempt {attempt + 1}")
@@ -78,8 +84,9 @@ class DatabaseManager:
                         pass
                     raise psycopg2.OperationalError("Connection test failed")
                 
-                # 接続設定
-                conn.set_session(autocommit=False)
+                # ✅ 修正: autocommitをFalseに設定（set_sessionを使わない）
+                conn.autocommit = False
+                
                 logger.debug(f"✅ Connection acquired on attempt {attempt + 1}")
                 return conn
             
@@ -139,7 +146,11 @@ class DatabaseManager:
                     
                     def commit(self):
                         if not self._closed:
-                            return self._conn.commit()
+                            try:
+                                return self._conn.commit()
+                            except Exception as e:
+                                logger.error(f"❌ Commit error: {e}")
+                                raise
                     
                     def rollback(self):
                         if not self._closed:
