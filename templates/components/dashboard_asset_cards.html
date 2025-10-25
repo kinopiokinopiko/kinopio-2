@@ -7,23 +7,25 @@
             <div class="card-badges">
                 {% set jp_cost = jp_total - jp_profit %}
                 {% set jp_profit_rate = (jp_profit / jp_cost * 100) if jp_cost > 0 else 0 %}
+                <!-- 損益 -->
                 <div class="badge-item">
                     <div class="badge-label">損益</div>
-                    <div class="badge-percentage {% if jp_profit >= 0 %}positive{% else %}negative{% endif %}">
-                        {% if jp_profit >= 0 %}+{% endif %}{{ "{:.1f}".format(jp_profit_rate) }}%
+                    <div class="badge-percentage {% if jp_profit > 0 %}positive{% elif jp_profit < 0 %}negative{% else %}zero{% endif %}">
+                        {% if jp_profit > 0 %}+{% elif jp_profit < 0 %}{% endif %}{{ "{:.1f}".format(jp_profit_rate) }}%
                     </div>
                 </div>
-                <div class="badge-amount {% if jp_profit >= 0 %}profit-plus{% else %}profit-minus{% endif %}">
-                    {% if jp_profit >= 0 %}+{% endif %}¥{{ "{:,.0f}".format(jp_profit) }}
+                <div class="badge-amount {% if jp_profit > 0 %}profit-plus{% elif jp_profit < 0 %}profit-minus{% else %}zero{% endif %}">
+                    {% if jp_profit > 0 %}+{% elif jp_profit < 0 %}{% endif %}¥{{ "{:,.0f}".format(jp_profit) }}
                 </div>
+                <!-- 前日比 -->
                 <div class="badge-item" style="margin-top: 8px;">
                     <div class="badge-label">前日比</div>
-                    <div class="badge-percentage {% if jp_day_change >= 0 %}positive{% else %}negative{% endif %}">
-                        {% if jp_day_change >= 0 %}+{% endif %}{{ "{:.1f}".format(jp_day_change_rate) }}%
+                    <div class="badge-percentage {% if jp_day_change > 0 %}positive{% elif jp_day_change < 0 %}negative{% else %}zero{% endif %}">
+                        {% if jp_day_change > 0 %}+{% elif jp_day_change < 0 %}{% endif %}{{ "{:.1f}".format(jp_day_change_rate) }}%
                     </div>
                 </div>
-                <div class="badge-amount {% if jp_day_change >= 0 %}profit-plus{% else %}profit-minus{% endif %}">
-                    {% if jp_day_change >= 0 %}+{% endif %}¥{{ "{:,.0f}".format(jp_day_change) }}
+                <div class="badge-amount {% if jp_day_change > 0 %}profit-plus{% elif jp_day_change < 0 %}profit-minus{% else %}zero{% endif %}">
+                    {% if jp_day_change > 0 %}+{% elif jp_day_change < 0 %}{% endif %}¥{{ "{:,.0f}".format(jp_day_change) }}
                 </div>
             </div>
         </div>
@@ -40,23 +42,25 @@
             <div class="card-badges">
                 {% set us_cost_jpy = us_total_jpy - us_profit_jpy %}
                 {% set us_profit_rate = (us_profit_jpy / us_cost_jpy * 100) if us_cost_jpy > 0 else 0 %}
+                <!-- 損益 -->
                 <div class="badge-item">
                     <div class="badge-label">損益</div>
-                    <div class="badge-percentage {% if us_profit_jpy >= 0 %}positive{% else %}negative{% endif %}">
-                        {% if us_profit_jpy >= 0 %}+{% endif %}{{ "{:.1f}".format(us_profit_rate) }}%
+                    <div class="badge-percentage {% if us_profit_jpy > 0 %}positive{% elif us_profit_jpy < 0 %}negative{% else %}zero{% endif %}">
+                        {% if us_profit_jpy > 0 %}+{% elif us_profit_jpy < 0 %}{% endif %}{{ "{:.1f}".format(us_profit_rate) }}%
                     </div>
                 </div>
-                <div class="badge-amount {% if us_profit_jpy >= 0 %}profit-plus{% else %}profit-minus{% endif %}">
-                    {% if us_profit_jpy >= 0 %}+{% endif %}¥{{ "{:,.0f}".format(us_profit_jpy) }}
+                <div class="badge-amount {% if us_profit_jpy > 0 %}profit-plus{% elif us_profit_jpy < 0 %}profit-minus{% else %}zero{% endif %}">
+                    {% if us_profit_jpy > 0 %}+{% elif us_profit_jpy < 0 %}{% endif %}¥{{ "{:,.0f}".format(us_profit_jpy) }}
                 </div>
+                <!-- 前日比 -->
                 <div class="badge-item" style="margin-top: 8px;">
                     <div class="badge-label">前日比</div>
-                    <div class="badge-percentage {% if us_day_change >= 0 %}positive{% else %}negative{% endif %}">
-                        {% if us_day_change >= 0 %}+{% endif %}{{ "{:.1f}".format(us_day_change_rate) }}%
+                    <div class="badge-percentage {% if us_day_change > 0 %}positive{% elif us_day_change < 0 %}negative{% else %}zero{% endif %}">
+                        {% if us_day_change > 0 %}+{% elif us_day_change < 0 %}{% endif %}{{ "{:.1f}".format(us_day_change_rate) }}%
                     </div>
                 </div>
-                <div class="badge-amount {% if us_day_change >= 0 %}profit-plus{% else %}profit-minus{% endif %}">
-                    {% if us_day_change >= 0 %}+{% endif %}¥{{ "{:,.0f}".format(us_day_change) }}
+                <div class="badge-amount {% if us_day_change > 0 %}profit-plus{% elif us_day_change < 0 %}profit-minus{% else %}zero{% endif %}">
+                    {% if us_day_change > 0 %}+{% elif us_day_change < 0 %}{% endif %}¥{{ "{:,.0f}".format(us_day_change) }}
                 </div>
             </div>
         </div>
@@ -84,23 +88,25 @@
             <div class="card-badges">
                 {% set gold_cost = gold_total - gold_profit %}
                 {% set gold_profit_rate = (gold_profit / gold_cost * 100) if gold_cost > 0 else 0 %}
+                <!-- 損益 -->
                 <div class="badge-item">
                     <div class="badge-label">損益</div>
-                    <div class="badge-percentage {% if gold_profit >= 0 %}positive{% else %}negative{% endif %}">
-                        {% if gold_profit >= 0 %}+{% endif %}{{ "{:.1f}".format(gold_profit_rate) }}%
+                    <div class="badge-percentage {% if gold_profit > 0 %}positive{% elif gold_profit < 0 %}negative{% else %}zero{% endif %}">
+                        {% if gold_profit > 0 %}+{% elif gold_profit < 0 %}{% endif %}{{ "{:.1f}".format(gold_profit_rate) }}%
                     </div>
                 </div>
-                <div class="badge-amount {% if gold_profit >= 0 %}profit-plus{% else %}profit-minus{% endif %}">
-                    {% if gold_profit >= 0 %}+{% endif %}¥{{ "{:,.0f}".format(gold_profit) }}
+                <div class="badge-amount {% if gold_profit > 0 %}profit-plus{% elif gold_profit < 0 %}profit-minus{% else %}zero{% endif %}">
+                    {% if gold_profit > 0 %}+{% elif gold_profit < 0 %}{% endif %}¥{{ "{:,.0f}".format(gold_profit) }}
                 </div>
+                <!-- 前日比 -->
                 <div class="badge-item" style="margin-top: 8px;">
                     <div class="badge-label">前日比</div>
-                    <div class="badge-percentage {% if gold_day_change >= 0 %}positive{% else %}negative{% endif %}">
-                        {% if gold_day_change >= 0 %}+{% endif %}{{ "{:.1f}".format(gold_day_change_rate) }}%
+                    <div class="badge-percentage {% if gold_day_change > 0 %}positive{% elif gold_day_change < 0 %}negative{% else %}zero{% endif %}">
+                        {% if gold_day_change > 0 %}+{% elif gold_day_change < 0 %}{% endif %}{{ "{:.1f}".format(gold_day_change_rate) }}%
                     </div>
                 </div>
-                <div class="badge-amount {% if gold_day_change >= 0 %}profit-plus{% else %}profit-minus{% endif %}">
-                    {% if gold_day_change >= 0 %}+{% endif %}¥{{ "{:,.0f}".format(gold_day_change) }}
+                <div class="badge-amount {% if gold_day_change > 0 %}profit-plus{% elif gold_day_change < 0 %}profit-minus{% else %}zero{% endif %}">
+                    {% if gold_day_change > 0 %}+{% elif gold_day_change < 0 %}{% endif %}¥{{ "{:,.0f}".format(gold_day_change) }}
                 </div>
             </div>
         </div>
@@ -117,23 +123,25 @@
             <div class="card-badges">
                 {% set crypto_cost = crypto_total - crypto_profit %}
                 {% set crypto_profit_rate = (crypto_profit / crypto_cost * 100) if crypto_cost > 0 else 0 %}
+                <!-- 損益 -->
                 <div class="badge-item">
                     <div class="badge-label">損益</div>
-                    <div class="badge-percentage {% if crypto_profit >= 0 %}positive{% else %}negative{% endif %}">
-                        {% if crypto_profit >= 0 %}+{% endif %}{{ "{:.1f}".format(crypto_profit_rate) }}%
+                    <div class="badge-percentage {% if crypto_profit > 0 %}positive{% elif crypto_profit < 0 %}negative{% else %}zero{% endif %}">
+                        {% if crypto_profit > 0 %}+{% elif crypto_profit < 0 %}{% endif %}{{ "{:.1f}".format(crypto_profit_rate) }}%
                     </div>
                 </div>
-                <div class="badge-amount {% if crypto_profit >= 0 %}profit-plus{% else %}profit-minus{% endif %}">
-                    {% if crypto_profit >= 0 %}+{% endif %}¥{{ "{:,.0f}".format(crypto_profit) }}
+                <div class="badge-amount {% if crypto_profit > 0 %}profit-plus{% elif crypto_profit < 0 %}profit-minus{% else %}zero{% endif %}">
+                    {% if crypto_profit > 0 %}+{% elif crypto_profit < 0 %}{% endif %}¥{{ "{:,.0f}".format(crypto_profit) }}
                 </div>
+                <!-- 前日比 -->
                 <div class="badge-item" style="margin-top: 8px;">
                     <div class="badge-label">前日比</div>
-                    <div class="badge-percentage {% if crypto_day_change >= 0 %}positive{% else %}negative{% endif %}">
-                        {% if crypto_day_change >= 0 %}+{% endif %}{{ "{:.1f}".format(crypto_day_change_rate) }}%
+                    <div class="badge-percentage {% if crypto_day_change > 0 %}positive{% elif crypto_day_change < 0 %}negative{% else %}zero{% endif %}">
+                        {% if crypto_day_change > 0 %}+{% elif crypto_day_change < 0 %}{% endif %}{{ "{:.1f}".format(crypto_day_change_rate) }}%
                     </div>
                 </div>
-                <div class="badge-amount {% if crypto_day_change >= 0 %}profit-plus{% else %}profit-minus{% endif %}">
-                    {% if crypto_day_change >= 0 %}+{% endif %}¥{{ "{:,.0f}".format(crypto_day_change) }}
+                <div class="badge-amount {% if crypto_day_change > 0 %}profit-plus{% elif crypto_day_change < 0 %}profit-minus{% else %}zero{% endif %}">
+                    {% if crypto_day_change > 0 %}+{% elif crypto_day_change < 0 %}{% endif %}¥{{ "{:,.0f}".format(crypto_day_change) }}
                 </div>
             </div>
         </div>
@@ -150,23 +158,25 @@
             <div class="card-badges">
                 {% set it_cost = investment_trust_total - investment_trust_profit %}
                 {% set it_profit_rate = (investment_trust_profit / it_cost * 100) if it_cost > 0 else 0 %}
+                <!-- 損益 -->
                 <div class="badge-item">
                     <div class="badge-label">損益</div>
-                    <div class="badge-percentage {% if investment_trust_profit >= 0 %}positive{% else %}negative{% endif %}">
-                        {% if investment_trust_profit >= 0 %}+{% endif %}{{ "{:.1f}".format(it_profit_rate) }}%
+                    <div class="badge-percentage {% if investment_trust_profit > 0 %}positive{% elif investment_trust_profit < 0 %}negative{% else %}zero{% endif %}">
+                        {% if investment_trust_profit > 0 %}+{% elif investment_trust_profit < 0 %}{% endif %}{{ "{:.1f}".format(it_profit_rate) }}%
                     </div>
                 </div>
-                <div class="badge-amount {% if investment_trust_profit >= 0 %}profit-plus{% else %}profit-minus{% endif %}">
-                    {% if investment_trust_profit >= 0 %}+{% endif %}¥{{ "{:,.0f}".format(investment_trust_profit) }}
+                <div class="badge-amount {% if investment_trust_profit > 0 %}profit-plus{% elif investment_trust_profit < 0 %}profit-minus{% else %}zero{% endif %}">
+                    {% if investment_trust_profit > 0 %}+{% elif investment_trust_profit < 0 %}{% endif %}¥{{ "{:,.0f}".format(investment_trust_profit) }}
                 </div>
+                <!-- 前日比 -->
                 <div class="badge-item" style="margin-top: 8px;">
                     <div class="badge-label">前日比</div>
-                    <div class="badge-percentage {% if investment_trust_day_change >= 0 %}positive{% else %}negative{% endif %}">
-                        {% if investment_trust_day_change >= 0 %}+{% endif %}{{ "{:.1f}".format(investment_trust_day_change_rate) }}%
+                    <div class="badge-percentage {% if investment_trust_day_change > 0 %}positive{% elif investment_trust_day_change < 0 %}negative{% else %}zero{% endif %}">
+                        {% if investment_trust_day_change > 0 %}+{% elif investment_trust_day_change < 0 %}{% endif %}{{ "{:.1f}".format(investment_trust_day_change_rate) }}%
                     </div>
                 </div>
-                <div class="badge-amount {% if investment_trust_day_change >= 0 %}profit-plus{% else %}profit-minus{% endif %}">
-                    {% if investment_trust_day_change >= 0 %}+{% endif %}¥{{ "{:,.0f}".format(investment_trust_day_change) }}
+                <div class="badge-amount {% if investment_trust_day_change > 0 %}profit-plus{% elif investment_trust_day_change < 0 %}profit-minus{% else %}zero{% endif %}">
+                    {% if investment_trust_day_change > 0 %}+{% elif investment_trust_day_change < 0 %}{% endif %}¥{{ "{:,.0f}".format(investment_trust_day_change) }}
                 </div>
             </div>
         </div>
@@ -183,23 +193,25 @@
             <div class="card-badges">
                 {% set insurance_cost = insurance_total - insurance_profit %}
                 {% set insurance_profit_rate = (insurance_profit / insurance_cost * 100) if insurance_cost > 0 else 0 %}
+                <!-- 損益 -->
                 <div class="badge-item">
                     <div class="badge-label">損益</div>
-                    <div class="badge-percentage {% if insurance_profit >= 0 %}positive{% else %}negative{% endif %}">
-                        {% if insurance_profit >= 0 %}+{% endif %}{{ "{:.1f}".format(insurance_profit_rate) }}%
+                    <div class="badge-percentage {% if insurance_profit > 0 %}positive{% elif insurance_profit < 0 %}negative{% else %}zero{% endif %}">
+                        {% if insurance_profit > 0 %}+{% elif insurance_profit < 0 %}{% endif %}{{ "{:.1f}".format(insurance_profit_rate) }}%
                     </div>
                 </div>
-                <div class="badge-amount {% if insurance_profit >= 0 %}profit-plus{% else %}profit-minus{% endif %}">
-                    {% if insurance_profit >= 0 %}+{% endif %}¥{{ "{:,.0f}".format(insurance_profit) }}
+                <div class="badge-amount {% if insurance_profit > 0 %}profit-plus{% elif insurance_profit < 0 %}profit-minus{% else %}zero{% endif %}">
+                    {% if insurance_profit > 0 %}+{% elif insurance_profit < 0 %}{% endif %}¥{{ "{:,.0f}".format(insurance_profit) }}
                 </div>
+                <!-- 前日比 -->
                 <div class="badge-item" style="margin-top: 8px;">
                     <div class="badge-label">前日比</div>
-                    <div class="badge-percentage {% if insurance_day_change >= 0 %}positive{% else %}negative{% endif %}">
-                        {% if insurance_day_change >= 0 %}+{% endif %}{{ "{:.1f}".format(insurance_day_change_rate) }}%
+                    <div class="badge-percentage {% if insurance_day_change > 0 %}positive{% elif insurance_day_change < 0 %}negative{% else %}zero{% endif %}">
+                        {% if insurance_day_change > 0 %}+{% elif insurance_day_change < 0 %}{% endif %}{{ "{:.1f}".format(insurance_day_change_rate) }}%
                     </div>
                 </div>
-                <div class="badge-amount {% if insurance_day_change >= 0 %}profit-plus{% else %}profit-minus{% endif %}">
-                    {% if insurance_day_change >= 0 %}+{% endif %}¥{{ "{:,.0f}".format(insurance_day_change) }}
+                <div class="badge-amount {% if insurance_day_change > 0 %}profit-plus{% elif insurance_day_change < 0 %}profit-minus{% else %}zero{% endif %}">
+                    {% if insurance_day_change > 0 %}+{% elif insurance_day_change < 0 %}{% endif %}¥{{ "{:,.0f}".format(insurance_day_change) }}
                 </div>
             </div>
         </div>
