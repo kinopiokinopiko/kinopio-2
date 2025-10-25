@@ -71,7 +71,6 @@
         }
     }
     
-    /* ✅ 総資産カード */
     .total-card {
         background: white;
         border-radius: 16px;
@@ -101,7 +100,6 @@
         letter-spacing: -1px;
     }
     
-    /* ✅ 修正: 損益・前日比のラベルとパーセンテージを横並びに */
     .info-row {
         display: flex;
         align-items: center;
@@ -159,7 +157,6 @@
         font-weight: 600;
     }
     
-    /* ✅ 資産カードグリッド */
     .asset-grid {
         display: grid;
         grid-template-columns: repeat(2, 1fr);
@@ -167,7 +164,6 @@
         margin-bottom: 24px;
     }
     
-    /* ✅ 資産カード */
     .asset-card {
         background: white;
         border-radius: 16px;
@@ -191,7 +187,6 @@
         transform: scale(0.98);
     }
     
-    /* ✅ カードヘッダー（アイコンとバッジを横並び）*/
     .card-header {
         display: flex;
         align-items: flex-start;
@@ -210,7 +205,6 @@
         flex-shrink: 0;
     }
     
-    /* ✅ 修正: バッジコンテナ（損益と前日比を縦並び、ラベルとパーセンテージは横並び）*/
     .card-badges {
         display: flex;
         flex-direction: column;
@@ -218,7 +212,6 @@
         flex: 1;
     }
     
-    /* ✅ 修正: 各バッジ行（ラベルとパーセンテージを横並び） */
     .badge-item {
         display: flex;
         align-items: center;
@@ -249,7 +242,6 @@
         background: #28a745;
     }
     
-    /* ✅ 修正: 金額は縦に配置 */
     .badge-amount {
         font-size: 13px;
         font-weight: 700;
@@ -259,7 +251,6 @@
         padding-left: 0;
     }
     
-    /* ✅ カード本体情報 */
     .card-body {
         text-align: center;
         margin-top: auto;
@@ -279,11 +270,9 @@
         letter-spacing: -0.5px;
     }
     
-    /* カラークラス */
     .profit-plus { color: #dc3545; }
     .profit-minus { color: #28a745; }
 
-    /* チャートコンテナ */
     .chart-container-with-tabs {
         background: white;
         border-radius: 16px;
@@ -401,7 +390,6 @@
         height: 100%;
     }
 
-    /* タブレット・デスクトップ対応 */
     @media (min-width: 768px) {
         .asset-grid {
             grid-template-columns: repeat(3, 1fr);
@@ -459,7 +447,6 @@
         }
     }
     
-    /* スマホ対応 */
     @media (max-width: 480px) {
         .card-icon {
             width: 50px;
@@ -506,652 +493,19 @@
 {% endblock %}
 
 {% block content %}
-<!-- ヘッダーバー -->
-<div class="header-bar">
-    <form method="post" action="{{ url_for('assets.update_all_prices') }}" style="margin: 0;">
-        <button type="submit" class="icon-btn" onclick="return confirm('全ての価格を手動で更新しますか?時間がかかる場合があります。')" title="価格更新">
-            <svg class="refresh-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                <polyline points="23 4 23 10 17 10"></polyline>
-                <polyline points="1 20 1 14 7 14"></polyline>
-                <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"></path>
-            </svg>
-        </button>
-    </form>
-    <div class="header-title">{{ user_name }}さんへようこそ</div>
-    <a href="{{ url_for('auth.logout') }}" class="icon-btn" title="ログアウト">
-        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-            <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path>
-            <polyline points="16 17 21 12 16 7"></polyline>
-            <line x1="21" y1="12" x2="9" y2="12"></line>
-        </svg>
-    </a>
-</div>
+<!-- ヘッダー -->
+{% include 'components/dashboard_header.html' %}
 
-<!-- ✅ 総資産カード -->
-<div class="total-card" style="margin-bottom: 24px;">
-    <div class="total-label">総資産</div>
-    <div class="total-amount">¥{{ "{:,.0f}".format(total_assets) }}</div>
-    
-    <!-- ✅ 損益セクション -->
-    <div class="info-row">
-        <span class="info-label">損益</span>
-        <span class="info-percentage-badge {% if total_profit >= 0 %}positive{% else %}negative{% endif %}">
-            {% if total_profit >= 0 %}+{% endif %}{{ "{:.2f}".format(total_profit_rate) }}%
-        </span>
-    </div>
-    <div class="info-amount {% if total_profit >= 0 %}positive{% else %}negative{% endif %}">
-        {% if total_profit >= 0 %}+{% endif %}¥{{ "{:,.0f}".format(total_profit) }}
-    </div>
-    
-    <div class="divider"></div>
-    
-    <!-- ✅ 前日比セクション -->
-    <div class="info-row">
-        <span class="info-label">前日比</span>
-        <span class="info-percentage-badge {% if total_day_change >= 0 %}positive{% else %}negative{% endif %}">
-            {% if total_day_change >= 0 %}+{% endif %}{{ "{:.2f}".format(total_day_change_rate) }}%
-        </span>
-    </div>
-    <div class="info-amount {% if total_day_change >= 0 %}positive{% else %}negative{% endif %}">
-        {% if total_day_change >= 0 %}+{% endif %}¥{{ "{:,.0f}".format(total_day_change) }}
-    </div>
-    
-    <!-- ✅ 更新時刻 -->
-    <div class="update-time">
-        {% set now = datetime.now(timezone(timedelta(hours=9))) %}
-        {{ now.strftime('%m/%d %H:%M') }} 更新
-    </div>
-</div>
+<!-- 総資産サマリー -->
+{% include 'components/dashboard_summary.html' %}
 
-<!-- チャートセクション -->
-<div class="chart-container-with-tabs">
-    <div class="tab-nav">
-        <button class="tab-btn active" onclick="showTab('portfolio', this)">ポートフォリオ</button>
-        <button class="tab-btn" onclick="showTab('line', this)">折れ線グラフ推移</button>
-        <button class="tab-btn" onclick="showTab('bar', this)">棒グラフ推移</button>
-    </div>
+<!-- チャート -->
+{% include 'components/dashboard_charts.html' %}
 
-    <div class="tab-content-wrapper">
-        <!-- ポートフォリオ円グラフ -->
-        <div id="portfolio-content" class="tab-content active">
-            <div class="chart-canvas-container">
-                 <canvas id="assetPieChart"></canvas>
-            </div>
-        </div>
-
-        <!-- 折れ線グラフ -->
-        <div id="line-content" class="tab-content">
-            <div class="legend-controls">
-                <label class="legend-item">
-                    <input type="checkbox" id="toggle-all-lines">
-                    <b>全選択</b>
-                </label>
-                <label class="legend-item">
-                    <input type="checkbox" class="line-toggle" data-dataset-index="0" checked>
-                    <span class="legend-color-box" style="background-color: #808080;"></span>総資産
-                </label>
-                <label class="legend-item">
-                    <input type="checkbox" class="line-toggle" data-dataset-index="1">
-                    <span class="legend-color-box" style="background-color: #E63946;"></span>日本株
-                </label>
-                <label class="legend-item">
-                    <input type="checkbox" class="line-toggle" data-dataset-index="2">
-                    <span class="legend-color-box" style="background-color: #457B9D;"></span>米国株
-                </label>
-                <label class="legend-item">
-                    <input type="checkbox" class="line-toggle" data-dataset-index="3">
-                    <span class="legend-color-box" style="background-color: #F4A261;"></span>現金
-                </label>
-                <label class="legend-item">
-                    <input type="checkbox" class="line-toggle" data-dataset-index="4">
-                    <span class="legend-color-box" style="background-color: #E9C46A;"></span>金
-                </label>
-                <label class="legend-item">
-                    <input type="checkbox" class="line-toggle" data-dataset-index="5">
-                    <span class="legend-color-box" style="background-color: #9B5DE5;"></span>暗号資産
-                </label>
-                <label class="legend-item">
-                    <input type="checkbox" class="line-toggle" data-dataset-index="6">
-                    <span class="legend-color-box" style="background-color: #52B788;"></span>投資信託
-                </label>
-                <label class="legend-item">
-                    <input type="checkbox" class="line-toggle" data-dataset-index="7">
-                    <span class="legend-color-box" style="background-color: #F15BB5;"></span>保険
-                </label>
-            </div>
-            <div class="chart-canvas-container">
-                <canvas id="assetLineChart"></canvas>
-            </div>
-        </div>
-
-        <!-- 棒グラフ -->
-        <div id="bar-content" class="tab-content">
-            <div class="legend-controls">
-                <label class="legend-item">
-                    <input type="checkbox" id="toggle-all-bars" checked>
-                    <b>全選択</b>
-                </label>
-                <label class="legend-item">
-                    <input type="checkbox" class="bar-toggle" data-dataset-index="0" checked>
-                    <span class="legend-color-box" style="background-color: #E63946;"></span>日本株
-                </label>
-                <label class="legend-item">
-                    <input type="checkbox" class="bar-toggle" data-dataset-index="1" checked>
-                    <span class="legend-color-box" style="background-color: #457B9D;"></span>米国株
-                </label>
-                <label class="legend-item">
-                    <input type="checkbox" class="bar-toggle" data-dataset-index="2" checked>
-                    <span class="legend-color-box" style="background-color: #F4A261;"></span>現金
-                </label>
-                <label class="legend-item">
-                    <input type="checkbox" class="bar-toggle" data-dataset-index="3" checked>
-                    <span class="legend-color-box" style="background-color: #E9C46A;"></span>金
-                </label>
-                <label class="legend-item">
-                    <input type="checkbox" class="bar-toggle" data-dataset-index="4" checked>
-                    <span class="legend-color-box" style="background-color: #9B5DE5;"></span>暗号資産
-                </label>
-                <label class="legend-item">
-                    <input type="checkbox" class="bar-toggle" data-dataset-index="5" checked>
-                    <span class="legend-color-box" style="background-color: #52B788;"></span>投資信託
-                </label>
-                <label class="legend-item">
-                    <input type="checkbox" class="bar-toggle" data-dataset-index="6" checked>
-                    <span class="legend-color-box" style="background-color: #F15BB5;"></span>保険
-                </label>
-            </div>
-            <div class="chart-canvas-container">
-                <canvas id="assetHistoryChart"></canvas>
-            </div>
-        </div>
-    </div>
-</div>
-
-<!-- ✅ 資産カードグリッド -->
-<div class="asset-grid">
-    <!-- 日本株カード -->
-    <a href="{{ url_for('assets.manage_assets', asset_type='jp_stock') }}" class="asset-card">
-        <div class="card-header">
-            <div class="card-icon" style="background: #e8f5e9;">🇯🇵</div>
-            <div class="card-badges">
-                {% set jp_cost = jp_total - jp_profit %}
-                {% set jp_profit_rate = (jp_profit / jp_cost * 100) if jp_cost > 0 else 0 %}
-                <!-- ✅ 修正: ラベルとパーセンテージを横並び -->
-                <div class="badge-item">
-                    <div class="badge-label">損益</div>
-                    <div class="badge-percentage {% if jp_profit >= 0 %}positive{% else %}negative{% endif %}">
-                        {% if jp_profit >= 0 %}+{% endif %}{{ "{:.1f}".format(jp_profit_rate) }}%
-                    </div>
-                </div>
-                <!-- ✅ 金額は縦に配置 -->
-                <div class="badge-amount {% if jp_profit >= 0 %}profit-plus{% else %}profit-minus{% endif %}">
-                    {% if jp_profit >= 0 %}+{% endif %}¥{{ "{:,.0f}".format(jp_profit) }}
-                </div>
-                <!-- ✅ 修正: ラベルとパーセンテージを横並び -->
-                <div class="badge-item" style="margin-top: 8px;">
-                    <div class="badge-label">前日比</div>
-                    <div class="badge-percentage {% if jp_day_change >= 0 %}positive{% else %}negative{% endif %}">
-                        {% if jp_day_change >= 0 %}+{% endif %}{{ "{:.1f}".format(jp_day_change_rate) }}%
-                    </div>
-                </div>
-                <!-- ✅ 金額は縦に配置 -->
-                <div class="badge-amount {% if jp_day_change >= 0 %}profit-plus{% else %}profit-minus{% endif %}">
-                    {% if jp_day_change >= 0 %}+{% endif %}¥{{ "{:,.0f}".format(jp_day_change) }}
-                </div>
-            </div>
-        </div>
-        <div class="card-body">
-            <div class="card-name">日本株</div>
-            <div class="card-amount">¥{{ "{:,.0f}".format(jp_total) }}</div>
-        </div>
-    </a>
-    
-    <!-- 米国株カード -->
-    <a href="{{ url_for('assets.manage_assets', asset_type='us_stock') }}" class="asset-card">
-        <div class="card-header">
-            <div class="card-icon" style="background: #e3f2fd;">🇺🇸</div>
-            <div class="card-badges">
-                {% set us_cost_jpy = us_total_jpy - us_profit_jpy %}
-                {% set us_profit_rate = (us_profit_jpy / us_cost_jpy * 100) if us_cost_jpy > 0 else 0 %}
-                <div class="badge-item">
-                    <div class="badge-label">損益</div>
-                    <div class="badge-percentage {% if us_profit_jpy >= 0 %}positive{% else %}negative{% endif %}">
-                        {% if us_profit_jpy >= 0 %}+{% endif %}{{ "{:.1f}".format(us_profit_rate) }}%
-                    </div>
-                </div>
-                <div class="badge-amount {% if us_profit_jpy >= 0 %}profit-plus{% else %}profit-minus{% endif %}">
-                    {% if us_profit_jpy >= 0 %}+{% endif %}¥{{ "{:,.0f}".format(us_profit_jpy) }}
-                </div>
-                <div class="badge-item" style="margin-top: 8px;">
-                    <div class="badge-label">前日比</div>
-                    <div class="badge-percentage {% if us_day_change >= 0 %}positive{% else %}negative{% endif %}">
-                        {% if us_day_change >= 0 %}+{% endif %}{{ "{:.1f}".format(us_day_change_rate) }}%
-                    </div>
-                </div>
-                <div class="badge-amount {% if us_day_change >= 0 %}profit-plus{% else %}profit-minus{% endif %}">
-                    {% if us_day_change >= 0 %}+{% endif %}¥{{ "{:,.0f}".format(us_day_change) }}
-                </div>
-            </div>
-        </div>
-        <div class="card-body">
-            <div class="card-name">米国株</div>
-            <div class="card-amount">¥{{ "{:,.0f}".format(us_total_jpy) }}</div>
-        </div>
-    </a>
-    
-    <!-- 現金カード -->
-    <a href="{{ url_for('assets.manage_assets', asset_type='cash') }}" class="asset-card">
-        <div class="card-header">
-            <div class="card-icon" style="background: #fff3e0;">💰</div>
-        </div>
-        <div class="card-body">
-            <div class="card-name">現金</div>
-            <div class="card-amount">¥{{ "{:,.0f}".format(cash_total) }}</div>
-        </div>
-    </a>
-    
-    <!-- 金カード -->
-    <a href="{{ url_for('assets.manage_assets', asset_type='gold') }}" class="asset-card">
-        <div class="card-header">
-            <div class="card-icon" style="background: #fffde7;">🥇</div>
-            <div class="card-badges">
-                {% set gold_cost = gold_total - gold_profit %}
-                {% set gold_profit_rate = (gold_profit / gold_cost * 100) if gold_cost > 0 else 0 %}
-                <div class="badge-item">
-                    <div class="badge-label">損益</div>
-                    <div class="badge-percentage {% if gold_profit >= 0 %}positive{% else %}negative{% endif %}">
-                        {% if gold_profit >= 0 %}+{% endif %}{{ "{:.1f}".format(gold_profit_rate) }}%
-                    </div>
-                </div>
-                <div class="badge-amount {% if gold_profit >= 0 %}profit-plus{% else %}profit-minus{% endif %}">
-                    {% if gold_profit >= 0 %}+{% endif %}¥{{ "{:,.0f}".format(gold_profit) }}
-                </div>
-                <div class="badge-item" style="margin-top: 8px;">
-                    <div class="badge-label">前日比</div>
-                    <div class="badge-percentage {% if gold_day_change >= 0 %}positive{% else %}negative{% endif %}">
-                        {% if gold_day_change >= 0 %}+{% endif %}{{ "{:.1f}".format(gold_day_change_rate) }}%
-                    </div>
-                </div>
-                <div class="badge-amount {% if gold_day_change >= 0 %}profit-plus{% else %}profit-minus{% endif %}">
-                    {% if gold_day_change >= 0 %}+{% endif %}¥{{ "{:,.0f}".format(gold_day_change) }}
-                </div>
-            </div>
-        </div>
-        <div class="card-body">
-            <div class="card-name">金(Gold)</div>
-            <div class="card-amount">¥{{ "{:,.0f}".format(gold_total) }}</div>
-        </div>
-    </a>
-    
-    <!-- 暗号資産カード -->
-    <a href="{{ url_for('assets.manage_assets', asset_type='crypto') }}" class="asset-card">
-        <div class="card-header">
-            <div class="card-icon" style="background: #f3e5f5;">₿</div>
-            <div class="card-badges">
-                {% set crypto_cost = crypto_total - crypto_profit %}
-                {% set crypto_profit_rate = (crypto_profit / crypto_cost * 100) if crypto_cost > 0 else 0 %}
-                <div class="badge-item">
-                    <div class="badge-label">損益</div>
-                    <div class="badge-percentage {% if crypto_profit >= 0 %}positive{% else %}negative{% endif %}">
-                        {% if crypto_profit >= 0 %}+{% endif %}{{ "{:.1f}".format(crypto_profit_rate) }}%
-                    </div>
-                </div>
-                <div class="badge-amount {% if crypto_profit >= 0 %}profit-plus{% else %}profit-minus{% endif %}">
-                    {% if crypto_profit >= 0 %}+{% endif %}¥{{ "{:,.0f}".format(crypto_profit) }}
-                </div>
-                <div class="badge-item" style="margin-top: 8px;">
-                    <div class="badge-label">前日比</div>
-                    <div class="badge-percentage {% if crypto_day_change >= 0 %}positive{% else %}negative{% endif %}">
-                        {% if crypto_day_change >= 0 %}+{% endif %}{{ "{:.1f}".format(crypto_day_change_rate) }}%
-                    </div>
-                </div>
-                <div class="badge-amount {% if crypto_day_change >= 0 %}profit-plus{% else %}profit-minus{% endif %}">
-                    {% if crypto_day_change >= 0 %}+{% endif %}¥{{ "{:,.0f}".format(crypto_day_change) }}
-                </div>
-            </div>
-        </div>
-        <div class="card-body">
-            <div class="card-name">暗号資産</div>
-            <div class="card-amount">¥{{ "{:,.0f}".format(crypto_total) }}</div>
-        </div>
-    </a>
-
-    <!-- 投資信託カード -->
-    <a href="{{ url_for('assets.manage_assets', asset_type='investment_trust') }}" class="asset-card">
-        <div class="card-header">
-            <div class="card-icon" style="background: #e0f2f1;">📈</div>
-            <div class="card-badges">
-                {% set it_cost = investment_trust_total - investment_trust_profit %}
-                {% set it_profit_rate = (investment_trust_profit / it_cost * 100) if it_cost > 0 else 0 %}
-                <div class="badge-item">
-                    <div class="badge-label">損益</div>
-                    <div class="badge-percentage {% if investment_trust_profit >= 0 %}positive{% else %}negative{% endif %}">
-                        {% if investment_trust_profit >= 0 %}+{% endif %}{{ "{:.1f}".format(it_profit_rate) }}%
-                    </div>
-                </div>
-                <div class="badge-amount {% if investment_trust_profit >= 0 %}profit-plus{% else %}profit-minus{% endif %}">
-                    {% if investment_trust_profit >= 0 %}+{% endif %}¥{{ "{:,.0f}".format(investment_trust_profit) }}
-                </div>
-                <div class="badge-item" style="margin-top: 8px;">
-                    <div class="badge-label">前日比</div>
-                    <div class="badge-percentage {% if investment_trust_day_change >= 0 %}positive{% else %}negative{% endif %}">
-                        {% if investment_trust_day_change >= 0 %}+{% endif %}{{ "{:.1f}".format(investment_trust_day_change_rate) }}%
-                    </div>
-                </div>
-                <div class="badge-amount {% if investment_trust_day_change >= 0 %}profit-plus{% else %}profit-minus{% endif %}">
-                    {% if investment_trust_day_change >= 0 %}+{% endif %}¥{{ "{:,.0f}".format(investment_trust_day_change) }}
-                </div>
-            </div>
-        </div>
-        <div class="card-body">
-            <div class="card-name">投資信託</div>
-            <div class="card-amount">¥{{ "{:,.0f}".format(investment_trust_total) }}</div>
-        </div>
-    </a>
-
-    <!-- 保険カード -->
-    <a href="{{ url_for('assets.manage_assets', asset_type='insurance') }}" class="asset-card">
-        <div class="card-header">
-            <div class="card-icon" style="background: #e0f7fa;">🛡️</div>
-            <div class="card-badges">
-                {% set insurance_cost = insurance_total - insurance_profit %}
-                {% set insurance_profit_rate = (insurance_profit / insurance_cost * 100) if insurance_cost > 0 else 0 %}
-                <div class="badge-item">
-                    <div class="badge-label">損益</div>
-                    <div class="badge-percentage {% if insurance_profit >= 0 %}positive{% else %}negative{% endif %}">
-                        {% if insurance_profit >= 0 %}+{% endif %}{{ "{:.1f}".format(insurance_profit_rate) }}%
-                    </div>
-                </div>
-                <div class="badge-amount {% if insurance_profit >= 0 %}profit-plus{% else %}profit-minus{% endif %}">
-                    {% if insurance_profit >= 0 %}+{% endif %}¥{{ "{:,.0f}".format(insurance_profit) }}
-                </div>
-                <div class="badge-item" style="margin-top: 8px;">
-                    <div class="badge-label">前日比</div>
-                    <div class="badge-percentage {% if insurance_day_change >= 0 %}positive{% else %}negative{% endif %}">
-                        {% if insurance_day_change >= 0 %}+{% endif %}{{ "{:.1f}".format(insurance_day_change_rate) }}%
-                    </div>
-                </div>
-                <div class="badge-amount {% if insurance_day_change >= 0 %}profit-plus{% else %}profit-minus{% endif %}">
-                    {% if insurance_day_change >= 0 %}+{% endif %}¥{{ "{:,.0f}".format(insurance_day_change) }}
-                </div>
-            </div>
-        </div>
-        <div class="card-body">
-            <div class="card-name">保険</div>
-            <div class="card-amount">¥{{ "{:,.0f}".format(insurance_total) }}</div>
-        </div>
-    </a>
-</div>
+<!-- 資産カード -->
+{% include 'components/dashboard_asset_cards.html' %}
 {% endblock %}
 
 {% block scripts %}
-<script src="https://cdn.jsdelivr.net/npm/chart.js@3.9.1"></script>
-<script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.2.0"></script>
-
-<script>
-function showTab(tabName, clickedButton) {
-    const contents = document.querySelectorAll('.tab-content');
-    contents.forEach(content => {
-        content.classList.remove('active');
-    });
-
-    const buttons = document.querySelectorAll('.tab-btn');
-    buttons.forEach(button => {
-        button.classList.remove('active');
-    });
-
-    const targetContent = document.getElementById(tabName + '-content');
-    if (targetContent) {
-        targetContent.classList.add('active');
-    }
-    
-    if (clickedButton) {
-        clickedButton.classList.add('active');
-    }
-}
-
-Chart.register(ChartDataLabels);
-
-document.addEventListener('DOMContentLoaded', function() {
-    const chartDataJSON = '{{ chart_data | safe }}';
-    const historyDataJSON = '{{ history_data | safe }}';
-    let myLineChart, myBarChart; 
-
-    const assetColors = [
-        '#E63946', '#457B9D', '#F4A261', '#E9C46A', 
-        '#9B5DE5', '#52B788', '#F15BB5'
-    ];
-    const totalAssetColor = '#808080';
-
-    function hexToRgba(hex, alpha) {
-        let r = 0, g = 0, b = 0;
-        if (hex.length == 4) {
-            r = "0x" + hex[1] + hex[1];
-            g = "0x" + hex[2] + hex[2];
-            b = "0x" + hex[3] + hex[3];
-        } else if (hex.length == 7) {
-            r = "0x" + hex.substring(1, 3);
-            g = "0x" + hex.substring(3, 5);
-            b = "0x" + hex.substring(5, 7);
-        }
-        return `rgba(${+r},${+g},${+b},${alpha})`;
-    }
-
-    // 円グラフ
-    if (chartDataJSON) {
-        try {
-            const chartData = JSON.parse(chartDataJSON);
-            const filteredLabels = [], filteredValues = [], filteredColors = [];
-            chartData.values.forEach((value, index) => {
-                if (value > 0) {
-                    filteredLabels.push(chartData.labels[index]);
-                    filteredValues.push(value);
-                    filteredColors.push(assetColors[index]);
-                }
-            });
-
-            if (filteredValues.length > 0) {
-                const ctxPie = document.getElementById('assetPieChart').getContext('2d');
-                new Chart(ctxPie, {
-                    type: 'pie',
-                    data: {
-                        labels: filteredLabels,
-                        datasets: [{ 
-                            data: filteredValues, 
-                            backgroundColor: filteredColors, 
-                            borderColor: '#fff', 
-                            borderWidth: 2 
-                        }]
-                    },
-                    options: {
-                        responsive: true, 
-                        maintainAspectRatio: false,
-                        plugins: {
-                            legend: { display: false },
-                            title: { display: false },
-                            datalabels: {
-                                formatter: (value, context) => {
-                                    const total = context.chart.data.datasets[0].data.reduce((a, b) => a + b, 0);
-                                    const percentage = (value / total) * 100;
-                                    if (percentage < 3) return '';
-                                    const label = context.chart.data.labels[context.dataIndex];
-                                    return `${percentage.toFixed(1)}%\n${label}`;
-                                },
-                                color: '#fff', 
-                                textAlign: 'center', 
-                                font: { weight: 'bold', size: 13 },
-                                textShadowBlur: 6, 
-                                textShadowColor: 'rgba(0, 0, 0, 0.6)',
-                                offset: 0
-                            },
-                            tooltip: {
-                                callbacks: {
-                                    label: (context) => ` ${context.label}: ${new Intl.NumberFormat('ja-JP', { style: 'currency', currency: 'JPY' }).format(context.parsed)}`
-                                }
-                            }
-                        }
-                    }
-                });
-            }
-        } catch (e) { console.error("Pie chart error:", e); }
-    }
-
-    if (historyDataJSON) {
-        try {
-            const historyData = JSON.parse(historyDataJSON);
-            if (historyData.dates && historyData.dates.length > 0) {
-                const ctxLine = document.getElementById('assetLineChart').getContext('2d');
-                const lineDatasetConfigs = [
-                    { label: '総資産', data: historyData.total, color: totalAssetColor, hidden: false },
-                    { label: '日本株', data: historyData.jp_stock, color: assetColors[0], hidden: true },
-                    { label: '米国株', data: historyData.us_stock, color: assetColors[1], hidden: true },
-                    { label: '現金', data: historyData.cash, color: assetColors[2], hidden: true },
-                    { label: '金', data: historyData.gold, color: assetColors[3], hidden: true },
-                    { label: '暗号資産', data: historyData.crypto, color: assetColors[4], hidden: true },
-                    { label: '投資信託', data: historyData.investment_trust, color: assetColors[5], hidden: true },
-                    { label: '保険', data: historyData.insurance, color: assetColors[6], hidden: true }
-                ];
-                const lineDatasets = lineDatasetConfigs.map(config => ({
-                    label: config.label, data: config.data, borderColor: config.color,
-                    backgroundColor: hexToRgba(config.color, 0.2), fill: true, tension: 0.4,
-                    borderWidth: 2, pointRadius: 1, pointHoverRadius: 5, hidden: config.hidden
-                }));
-                myLineChart = new Chart(ctxLine, {
-                    type: 'line',
-                    data: { labels: historyData.dates, datasets: lineDatasets },
-                    options: {
-                        responsive: true, maintainAspectRatio: false,
-                        plugins: { 
-                            legend: { display: false }, 
-                            title: { display: false },
-                            datalabels: { display: false },
-                            tooltip: {
-                                mode: 'index', intersect: false,
-                                callbacks: {
-                                    label: (context) => ` ${context.dataset.label}: ${new Intl.NumberFormat('ja-JP', { style: 'currency', currency: 'JPY' }).format(context.parsed.y)}`
-                                }
-                            }
-                        },
-                        scales: {
-                            y: {
-                                beginAtZero: false,
-                                ticks: {
-                                    callback: (value) => {
-                                        if (value >= 1e8) return `¥${(value/1e8).toFixed(1)}億`;
-                                        if (value >= 1e4) return `¥${(value/1e4).toFixed(0)}万`;
-                                        return `¥${value.toLocaleString()}`;
-                                    }
-                                }
-                            }
-                        }
-                    }
-                });
-
-                const ctxHistory = document.getElementById('assetHistoryChart').getContext('2d');
-                const barThicknessOptions = {
-                    barPercentage: 0.2,
-                    categoryPercentage: 0.5
-                };
-                myBarChart = new Chart(ctxHistory, {
-                    type: 'bar',
-                    data: {
-                        labels: historyData.dates,
-                        datasets: [
-                            { label: '日本株', data: historyData.jp_stock, backgroundColor: assetColors[0], ...barThicknessOptions },
-                            { label: '米国株', data: historyData.us_stock, backgroundColor: assetColors[1], ...barThicknessOptions },
-                            { label: '現金', data: historyData.cash, backgroundColor: assetColors[2], ...barThicknessOptions },
-                            { label: '金', data: historyData.gold, backgroundColor: assetColors[3], ...barThicknessOptions },
-                            { label: '暗号資産', data: historyData.crypto, backgroundColor: assetColors[4], ...barThicknessOptions },
-                            { label: '投資信託', data: historyData.investment_trust, backgroundColor: assetColors[5], ...barThicknessOptions },
-                            { label: '保険', data: historyData.insurance, backgroundColor: assetColors[6], ...barThicknessOptions }
-                        ]
-                    },
-                    options: {
-                        responsive: true,
-                        maintainAspectRatio: false,
-                        plugins: {
-                            title: { display: false },
-                            tooltip: { mode: 'index', intersect: false },
-                            legend: { display: false },
-                            datalabels: { display: false }
-                        },
-                        scales: {
-                            x: { stacked: true },
-                            y: {
-                                stacked: true,
-                                ticks: {
-                                    callback: function(value) {
-                                        if (value >= 100000000) return '¥' + (value / 100000000).toFixed(1) + '億';
-                                        if (value >= 10000) return '¥' + (value / 10000).toLocaleString() + '万';
-                                        return '¥' + value.toLocaleString();
-                                    }
-                                }
-                            }
-                        }
-                    }
-                });
-
-                const lineToggles = document.querySelectorAll('.line-toggle');
-                const updateLineVisuals = () => {
-                    lineToggles.forEach(toggle => {
-                        const colorBox = toggle.nextElementSibling;
-                        if (colorBox) colorBox.style.opacity = toggle.checked ? '1.0' : '0.4';
-                    });
-                };
-                document.getElementById('toggle-all-lines').addEventListener('change', (e) => {
-                    const isChecked = e.target.checked;
-                    lineToggles.forEach(toggle => {
-                        toggle.checked = isChecked;
-                        const index = toggle.getAttribute('data-dataset-index');
-                        myLineChart.getDatasetMeta(parseInt(index)).hidden = !isChecked;
-                    });
-                    myLineChart.update();
-                    updateLineVisuals();
-                });
-                lineToggles.forEach(toggle => {
-                    toggle.addEventListener('change', () => {
-                        const index = toggle.getAttribute('data-dataset-index');
-                        myLineChart.getDatasetMeta(parseInt(index)).hidden = !toggle.checked;
-                        myLineChart.update();
-                        updateLineVisuals();
-                    });
-                });
-                updateLineVisuals();
-
-                const barToggles = document.querySelectorAll('.bar-toggle');
-                const updateBarVisuals = () => {
-                    barToggles.forEach(toggle => {
-                        const colorBox = toggle.nextElementSibling;
-                        if (colorBox) colorBox.style.opacity = toggle.checked ? '1.0' : '0.4';
-                    });
-                };
-                document.getElementById('toggle-all-bars').addEventListener('change', (e) => {
-                    const isChecked = e.target.checked;
-                    barToggles.forEach(toggle => {
-                        toggle.checked = isChecked;
-                        const index = toggle.getAttribute('data-dataset-index');
-                        myBarChart.getDatasetMeta(parseInt(index)).hidden = !isChecked;
-                    });
-                    myBarChart.update();
-                    updateBarVisuals();
-                });
-                barToggles.forEach(toggle => {
-                    toggle.addEventListener('change', () => {
-                        const index = toggle.getAttribute('data-dataset-index');
-                        myBarChart.getDatasetMeta(parseInt(index)).hidden = !toggle.checked;
-                        myBarChart.update();
-                        updateBarVisuals();
-                    });
-                });
-                updateBarVisuals();
-            }
-        } catch (e) { console.error("History chart error:", e); }
-    }
-    
-    const portfolioButton = document.querySelector('.tab-nav .tab-btn.active');
-    if (portfolioButton) {
-        showTab('portfolio', portfolioButton);
-    }
-});
-</script>
+{% include 'components/dashboard_scripts.html' %}
 {% endblock %}
