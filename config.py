@@ -10,11 +10,12 @@ class Config:
     SECRET_KEY = os.environ.get('SECRET_KEY', 'your-secret-key-change-this-in-production')
     FLASK_ENV = os.environ.get('FLASK_ENV', 'development')
     
-    # セッション設定
+    # ✅ 修正: シンプルなセッション設定
     PERMANENT_SESSION_LIFETIME = timedelta(days=7)
-    SESSION_COOKIE_SECURE = FLASK_ENV == 'production'
+    SESSION_COOKIE_SECURE = False  # HTTPS以外でも動作
     SESSION_COOKIE_HTTPONLY = True
     SESSION_COOKIE_SAMESITE = 'Lax'
+    SESSION_COOKIE_NAME = 'portfolio_session'
     
     # キャッシュ設定
     CACHE_DURATION = 300  # 5分
@@ -41,6 +42,8 @@ class ProductionConfig(Config):
     """本番環境設定"""
     DEBUG = False
     TESTING = False
+    # HTTPSの場合のみSecureをTrueに
+    # SESSION_COOKIE_SECURE = True
 
 class TestingConfig(Config):
     """テスト環境設定"""
