@@ -1,6 +1,6 @@
 import os
 import atexit
-from flask import Flask, redirect, url_for
+from flask import Flask, redirect, url_for, session
 from config import get_config
 from models import db_manager
 from services import scheduler_manager, keep_alive_manager
@@ -21,6 +21,13 @@ def create_app(config=None):
         config = get_config()
     app.config.from_object(config)
     
+    # ✅ 修正: SECRET_KEYが正しく設定されているか確認
+    if not app.config.get('SECRET_KEY') or app.config['SECRET_KEY'] == 'your-secret-key-change-this-in-production':
+        logger.warning("⚠️ Using default SECRET_KEY. Please set SECRET_KEY environment variable!")
+        # Renderで自動生成されたSECRET_KEYを使用
+        import secrets
+        app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY', secrets.token_hex(32))
+    
     # ロギング設定
     import logging
     logging.basicConfig(
@@ -33,6 +40,7 @@ def create_app(config=None):
     logger.info(f"📊 Environment: {config.FLASK_ENV}")
     logger.info(f"📊 Database: {'PostgreSQL' if config.USE_POSTGRES else 'SQLite'}")
     logger.info(f"📊 Database URL: {config.DATABASE_URL[:30]}..." if config.DATABASE_URL else "📊 Database URL: None")
+    logger.info(f"📊 Secret Key: {app.config['SECRET_KEY'][:10]}...")
     logger.info("=" * 70)
     
     # データベース初期化
@@ -54,8 +62,21 @@ def create_app(config=None):
     # ✅ ルートパスへのアクセスをログインページにリダイレクト
     @app.route('/')
     def index():
+        # セッションがあればダッシュボードへ
+        if 'user_id' in session:
+            logger.info(f"✅ User {session.get('username')} accessing root, redirecting to dashboard")
+            return redirect(url_for('dashboard.dashboard'))
         logger.info("📍 Root path accessed, redirecting to login")
         return redirect(url_for('auth.login'))
+    
+    # ✅ デバッグ用: セッション確認エンドポイント
+    @app.route('/debug/session')
+    def debug_session():
+        return {
+            'user_id': session.get('user_id'),
+            'username': session.get('username'),
+            'session_keys': list(session.keys())
+        }
     
     # エラーハンドラ
     @app.errorhandler(404)
