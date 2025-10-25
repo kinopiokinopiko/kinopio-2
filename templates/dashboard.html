@@ -468,10 +468,12 @@
             <div class="header-top">
                 <div class="user-name">👋 {{ user_name }}</div>
                 <div class="btn-group">
+                    <!-- ✅ 修正: assets.update_all_prices -->
                     <form action="{{ url_for('assets.update_all_prices') }}" method="POST" style="display: inline;">
                         <button type="submit" class="btn btn-primary">🔄 更新</button>
                     </form>
-                    <a href="{{ url_for('logout') }}" class="btn btn-secondary">ログアウト</a>
+                    <!-- ✅ 修正: auth.logout -->
+                    <a href="{{ url_for('auth.logout') }}" class="btn btn-secondary">ログアウト</a>
                 </div>
             </div>
 
@@ -496,7 +498,8 @@
         <!-- 資産カードグリッド -->
         <div class="asset-grid">
             <!-- 日本株 -->
-            <a href="{{ url_for('manage_assets', asset_type='jp_stock') }}" style="text-decoration: none;">
+            <!-- ✅ 修正: assets.manage_assets -->
+            <a href="{{ url_for('assets.manage_assets', asset_type='jp_stock') }}" style="text-decoration: none;">
                 <div class="asset-card">
                     {% if jp_profit != 0 %}
                     <span class="badge-percentage {% if jp_profit > 0 %}positive{% elif jp_profit < 0 %}negative{% else %}zero{% endif %}">
@@ -532,7 +535,7 @@
             </a>
 
             <!-- 米国株 -->
-            <a href="{{ url_for('manage_assets', asset_type='us_stock') }}" style="text-decoration: none;">
+            <a href="{{ url_for('assets.manage_assets', asset_type='us_stock') }}" style="text-decoration: none;">
                 <div class="asset-card">
                     {% if us_profit_jpy != 0 %}
                     <span class="badge-percentage {% if us_profit_jpy > 0 %}positive{% elif us_profit_jpy < 0 %}negative{% else %}zero{% endif %}">
@@ -568,7 +571,7 @@
             </a>
 
             <!-- 現金 -->
-            <a href="{{ url_for('manage_assets', asset_type='cash') }}" style="text-decoration: none;">
+            <a href="{{ url_for('assets.manage_assets', asset_type='cash') }}" style="text-decoration: none;">
                 <div class="asset-card">
                     <div class="card-icon icon-cash">💰</div>
                     <div class="card-info">
@@ -585,7 +588,7 @@
             </a>
 
             <!-- 金 -->
-            <a href="{{ url_for('manage_assets', asset_type='gold') }}" style="text-decoration: none;">
+            <a href="{{ url_for('assets.manage_assets', asset_type='gold') }}" style="text-decoration: none;">
                 <div class="asset-card">
                     {% if gold_profit != 0 %}
                     <span class="badge-percentage {% if gold_profit > 0 %}positive{% elif gold_profit < 0 %}negative{% else %}zero{% endif %}">
@@ -621,7 +624,7 @@
             </a>
 
             <!-- 暗号資産 -->
-            <a href="{{ url_for('manage_assets', asset_type='crypto') }}" style="text-decoration: none;">
+            <a href="{{ url_for('assets.manage_assets', asset_type='crypto') }}" style="text-decoration: none;">
                 <div class="asset-card">
                     {% if crypto_profit != 0 %}
                     <span class="badge-percentage {% if crypto_profit > 0 %}positive{% elif crypto_profit < 0 %}negative{% else %}zero{% endif %}">
@@ -657,7 +660,7 @@
             </a>
 
             <!-- 投資信託 -->
-            <a href="{{ url_for('manage_assets', asset_type='investment_trust') }}" style="text-decoration: none;">
+            <a href="{{ url_for('assets.manage_assets', asset_type='investment_trust') }}" style="text-decoration: none;">
                 <div class="asset-card">
                     {% if investment_trust_profit != 0 %}
                     <span class="badge-percentage {% if investment_trust_profit > 0 %}positive{% elif investment_trust_profit < 0 %}negative{% else %}zero{% endif %}">
@@ -693,7 +696,7 @@
             </a>
 
             <!-- 保険 -->
-            <a href="{{ url_for('manage_assets', asset_type='insurance') }}" style="text-decoration: none;">
+            <a href="{{ url_for('assets.manage_assets', asset_type='insurance') }}" style="text-decoration: none;">
                 <div class="asset-card">
                     {% if insurance_profit != 0 %}
                     <span class="badge-percentage {% if insurance_profit > 0 %}positive{% elif insurance_profit < 0 %}negative{% else %}zero{% endif %}">
@@ -746,7 +749,8 @@
 
     <!-- フッター -->
     <div class="footer">
-        <a href="{{ url_for('dashboard') }}" class="footer-btn active">
+        <!-- ✅ 修正: dashboard.dashboard -->
+        <a href="{{ url_for('dashboard.dashboard') }}" class="footer-btn active">
             <div class="footer-icon">🏠</div>
             <div>ホーム</div>
         </a>
@@ -830,4 +834,3 @@
     </script>
 </body>
 </html>
-
