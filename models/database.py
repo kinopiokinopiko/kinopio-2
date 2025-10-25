@@ -28,18 +28,16 @@ class DatabaseManager:
             self._init_pool()
     
     def _init_pool(self):
-        """コネクションプール初期化（RealDictCursorをデフォルトに設定）"""
+        """コネクションプール初期化"""
         if self.use_postgres and self.config.DATABASE_URL:
             try:
                 logger.info("🔌 Creating PostgreSQL connection pool...")
-                # ✅ 修正: プール作成時にcursor_factoryを設定
                 self.pool = pg_pool.SimpleConnectionPool(
                     1,  # minconn
                     10, # maxconn
-                    self.config.DATABASE_URL,
-                    cursor_factory=RealDictCursor  # ✅ ここで設定
+                    self.config.DATABASE_URL
                 )
-                logger.info("✅ PostgreSQL connection pool initialized with RealDictCursor")
+                logger.info("✅ PostgreSQL connection pool initialized")
             except Exception as e:
                 logger.error(f"❌ Failed to create connection pool: {e}", exc_info=True)
                 self.use_postgres = False
@@ -47,7 +45,7 @@ class DatabaseManager:
     
     @contextmanager
     def get_db(self):
-        """データベース接続を取得"""
+        """データベース接続を取得（常にRealDictCursorを使用）"""
         if self.use_postgres:
             if not self.pool:
                 raise RuntimeError("Database pool not initialized")
@@ -57,11 +55,18 @@ class DatabaseManager:
                 conn = self.pool.getconn()
                 conn.set_session(autocommit=False)
                 
-                # ✅ 修正: プール作成時に既にRealDictCursorが設定されているため不要だが、念のため確認
-                if conn.cursor_factory != RealDictCursor:
-                    logger.warning("⚠️ Cursor factory not set, applying RealDictCursor")
-                    conn.cursor_factory = RealDictCursor
+                # ✅ 修正: コネクションにカーソルファクトリーを明示的に設定
+                original_cursor = conn.cursor
                 
+                def cursor_with_dict_factory(*args, **kwargs):
+                    """常にRealDictCursorを返すラッパー"""
+                    if 'cursor_factory' not in kwargs:
+                        kwargs['cursor_factory'] = RealDictCursor
+                    return original_cursor(*args, **kwargs)
+                
+                conn.cursor = cursor_with_dict_factory
+                
+                logger.debug("✅ PostgreSQL connection with RealDictCursor wrapper")
                 yield conn
                 
             except Exception as e:
@@ -71,6 +76,8 @@ class DatabaseManager:
                 raise
             finally:
                 if conn:
+                    # カーソルファクトリーを元に戻す
+                    conn.cursor = original_cursor
                     self.pool.putconn(conn)
         else:
             conn = sqlite3.connect('portfolio.db')
@@ -157,7 +164,7 @@ class DatabaseManager:
             conn.commit()
             logger.info("✅ PostgreSQL tables created")
             
-            # ✅ デモユーザー作成（既存のハッシュを確認）
+            # デモユーザー作成
             from werkzeug.security import generate_password_hash
             
             cursor.execute("SELECT id, username, password_hash FROM users WHERE username = %s", ('demo',))
