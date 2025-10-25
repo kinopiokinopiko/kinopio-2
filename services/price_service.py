@@ -18,12 +18,10 @@ class PriceService:
         try:
             # ✅ 修正: assetを辞書型に変換
             if hasattr(asset, 'keys'):
-                # dict-likeオブジェクト（RealDictRowなど）
                 asset_dict = dict(asset)
             elif isinstance(asset, dict):
                 asset_dict = asset
             else:
-                # タプルの場合（通常は発生しないが念のため）
                 logger.error(f"❌ Unexpected asset type: {type(asset)}")
                 return None
             
@@ -53,18 +51,23 @@ class PriceService:
             price = 0.0
             name = symbol
             
-            if asset_type == 'jp_stock':
-                price, name = self._fetch_jp_stock(symbol)
-            elif asset_type == 'us_stock':
-                price, name = self._fetch_us_stock(symbol)
-            elif asset_type == 'gold':
-                price, name = self._fetch_gold_price()
-            elif asset_type == 'crypto':
-                price, name = self._fetch_crypto(symbol)
-            elif asset_type == 'investment_trust':
-                price, name = self._fetch_investment_trust(symbol)
-            else:
-                logger.warning(f"⚠️ Unknown asset type: {asset_type}")
+            try:
+                if asset_type == 'jp_stock':
+                    price, name = self._fetch_jp_stock(symbol)
+                elif asset_type == 'us_stock':
+                    price, name = self._fetch_us_stock(symbol)
+                elif asset_type == 'gold':
+                    price, name = self._fetch_gold_price()
+                elif asset_type == 'crypto':
+                    price, name = self._fetch_crypto(symbol)
+                elif asset_type == 'investment_trust':
+                    price, name = self._fetch_investment_trust(symbol)
+                else:
+                    logger.warning(f"⚠️ Unknown asset type: {asset_type}")
+                    return None
+            except Exception as fetch_error:
+                # ✅ エラー時は現在の価格を維持してスキップ
+                logger.warning(f"⚠️ Failed to fetch price for {symbol}, skipping: {fetch_error}")
                 return None
             
             # キャッシュに保存
@@ -82,7 +85,7 @@ class PriceService:
             return result
         
         except Exception as e:
-            logger.error(f"❌ Error fetching price for {symbol if 'symbol' in locals() else 'unknown'}: {e}", exc_info=True)
+            logger.error(f"❌ Error fetching price for {symbol if 'symbol' in locals() else 'unknown'}: {e}")
             return None
     
     def fetch_prices_parallel(self, assets):
@@ -91,23 +94,39 @@ class PriceService:
             logger.warning("⚠️ No assets to fetch prices for")
             return []
         
-        max_workers = min(self.config.MAX_WORKERS, len(assets))
+        # ✅ ワーカー数を制限（タイムアウト対策）
+        max_workers = min(10, len(assets))  # 20 → 10 に削減
         updated_prices = []
         
         logger.info(f"🔄 Starting parallel price fetch for {len(assets)} assets with {max_workers} workers")
         
         try:
             with concurrent.futures.ThreadPoolExecutor(max_workers=max_workers) as executor:
-                results = executor.map(self.fetch_price, assets)
-                # ✅ 修正: Noneを除外し、辞書型のリストを返す
-                updated_prices = [res for res in results if res is not None and isinstance(res, dict)]
+                # ✅ タイムアウトを設定
+                future_to_asset = {executor.submit(self.fetch_price, asset): asset for asset in assets}
+                
+                for future in concurrent.futures.as_completed(future_to_asset, timeout=240):
+                    try:
+                        result = future.result(timeout=10)  # 個別タイムアウト10秒
+                        if result is not None and isinstance(result, dict):
+                            updated_prices.append(result)
+                    except concurrent.futures.TimeoutError:
+                        asset = future_to_asset[future]
+                        logger.warning(f"⚠️ Timeout fetching price for {asset.get('symbol', 'unknown')}")
+                    except Exception as e:
+                        asset = future_to_asset[future]
+                        logger.warning(f"⚠️ Error in future for {asset.get('symbol', 'unknown')}: {e}")
             
-            logger.info(f"✅ Completed parallel fetch: {len(updated_prices)} prices updated")
+            logger.info(f"✅ Completed parallel fetch: {len(updated_prices)}/{len(assets)} prices updated")
             return updated_prices
+        
+        except concurrent.futures.TimeoutError:
+            logger.error(f"❌ Overall timeout in parallel fetch")
+            return updated_prices  # 取得できた分だけ返す
         
         except Exception as e:
             logger.error(f"❌ Error in parallel fetch: {e}", exc_info=True)
-            return []
+            return updated_prices
     
     def _fetch_jp_stock(self, symbol):
         """日本株の価格を取得（Yahoo Finance Japan）"""
@@ -118,14 +137,22 @@ class PriceService:
             
             soup = BeautifulSoup(response.text, 'lxml')
             
-            # 価格取得
-            price_elem = soup.select_one('span._3BGK5SVf')
-            if not price_elem:
-                # 別のセレクタを試す
-                price_elem = soup.select_one('span.stoksPrice')
+            # ✅ 複数のセレクタを試す
+            price_elem = None
+            selectors = [
+                'span._3BGK5SVf',
+                'span.stoksPrice',
+                'span[class*="price"]',
+                'div[class*="price"]'
+            ]
+            
+            for selector in selectors:
+                price_elem = soup.select_one(selector)
+                if price_elem:
+                    break
             
             if price_elem:
-                price_text = price_elem.text.strip().replace(',', '')
+                price_text = price_elem.text.strip().replace(',', '').replace('円', '')
                 price = float(price_text)
             else:
                 raise ValueError(f"Price element not found for {symbol}")
@@ -155,7 +182,6 @@ class PriceService:
             # 価格取得
             price_elem = soup.select_one('fin-streamer[data-symbol="{}"][data-field="regularMarketPrice"]'.format(symbol))
             if not price_elem:
-                # 別のセレクタを試す
                 price_elem = soup.select_one('fin-streamer[data-field="regularMarketPrice"]')
             
             if price_elem:
