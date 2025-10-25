@@ -1,6 +1,6 @@
 import os
 import atexit
-from flask import Flask, redirect, url_for, session
+from flask import Flask
 from config import get_config
 from models import db_manager
 from services import scheduler_manager, keep_alive_manager
@@ -51,22 +51,7 @@ def create_app(config=None):
         logger.error(f"❌ Blueprint registration failed: {e}", exc_info=True)
         raise
     
-    # ✅ 修正: ルートパスへのアクセスをauth blueprintに委譲（リダイレクトループ回避）
-    # auth.pyの@auth_bp.route('/')が処理するため、ここでは定義しない
-    
-    # エラーハンドラ
-    @app.errorhandler(404)
-    def not_found(e):
-        logger.warning(f"404 Error: {e}")
-        # ✅ 修正: ログインしているかチェック
-        if 'user_id' in session:
-            return redirect(url_for('dashboard.dashboard'))
-        return redirect(url_for('auth.login'))
-    
-    @app.errorhandler(500)
-    def server_error(e):
-        logger.error(f"500 Error: {e}", exc_info=True)
-        return "Internal Server Error", 500
+    # ✅ ルートハンドラーは一切定義しない（auth.pyに完全に委譲）
     
     # スケジューラーを開始
     try:
