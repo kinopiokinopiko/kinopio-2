@@ -89,37 +89,77 @@ class SchedulerManager:
             logger.error(f"❌ Failed to shutdown scheduler: {e}")
 
 class KeepAliveManager:
-    """Keep-Alive を管理"""
+    """Keep-Alive を管理（10分ごとにpingを送信）"""
     
     def __init__(self):
         self.session = requests.Session()
+        self.running = False
+        self.thread = None
     
     def keep_alive(self):
-        """アプリケーションがスリープしないようにping"""
+        """アプリケーションがスリープしないようにping（10分ごと）"""
         app_url = os.environ.get('RENDER_EXTERNAL_URL')
         
         if not app_url:
-            logger.info("RENDER_EXTERNAL_URL is not set. Keep-alive thread will not run.")
+            logger.warning("⚠️ RENDER_EXTERNAL_URL is not set. Keep-alive will not run.")
+            logger.info("ℹ️ Set RENDER_EXTERNAL_URL environment variable on Render dashboard")
             return
         
+        # URLの末尾のスラッシュを削除
+        app_url = app_url.rstrip('/')
         ping_url = f"{app_url}/ping"
         
-        while True:
+        logger.info(f"🚀 Keep-alive thread started")
+        logger.info(f"📡 Ping URL: {ping_url}")
+        logger.info(f"⏱️ Interval: 10 minutes (600 seconds)")
+        
+        while self.running:
             try:
-                logger.info(f"📡 Sending keep-alive ping...")
-                response = self.session.get(ping_url, timeout=5)
-                logger.info(f"✅ Keep-alive ping successful. Status: {response.status_code}")
+                logger.info(f"📡 Sending keep-alive ping to {ping_url}...")
+                response = self.session.get(ping_url, timeout=10)
+                
+                if response.status_code == 200:
+                    logger.info(f"✅ Keep-alive ping successful (Status: {response.status_code})")
+                else:
+                    logger.warning(f"⚠️ Keep-alive ping returned status {response.status_code}")
+                    
+            except requests.exceptions.Timeout:
+                logger.warning(f"⚠️ Keep-alive ping timeout after 10 seconds")
             except requests.exceptions.RequestException as e:
                 logger.warning(f"⚠️ Keep-alive ping failed: {e}")
+            except Exception as e:
+                logger.error(f"❌ Unexpected error in keep-alive: {e}", exc_info=True)
             
-            time.sleep(600)  # 10分ごと
+            # 10分（600秒）待機
+            time.sleep(600)
     
     def start_thread(self):
         """Keep-Alive スレッドを開始"""
+        # Render環境でのみ実行
         if os.environ.get('RENDER'):
-            logger.info("🚀 Starting keep-alive thread for Render...")
-            thread = threading.Thread(target=self.keep_alive, daemon=True)
-            thread.start()
+            logger.info("🌐 Running on Render, starting keep-alive thread...")
+            
+            # 既に実行中の場合はスキップ
+            if self.running:
+                logger.info("ℹ️ Keep-alive thread already running")
+                return
+            
+            self.running = True
+            self.thread = threading.Thread(target=self.keep_alive, daemon=True, name="KeepAliveThread")
+            self.thread.start()
+            logger.info("✅ Keep-alive thread started successfully")
+        else:
+            logger.info("ℹ️ Not running on Render, keep-alive thread will not start")
+            logger.info("ℹ️ (This is normal for local development)")
+    
+    def stop(self):
+        """Keep-Alive スレッドを停止"""
+        if self.running:
+            logger.info("🛑 Stopping keep-alive thread...")
+            self.running = False
+            if self.thread:
+                self.thread.join(timeout=5)
+            logger.info("✅ Keep-alive thread stopped")
 
 # グローバルインスタンス
 scheduler_manager = SchedulerManager()
