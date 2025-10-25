@@ -27,23 +27,23 @@ class DatabaseManager:
         if self.use_postgres:
             self._init_pool()
     
-def _init_pool(self):
-    """コネクションプール初期化（RealDictCursorをデフォルトに設定）"""
-    if self.use_postgres and self.config.DATABASE_URL:
-        try:
-            logger.info("🔌 Creating PostgreSQL connection pool...")
-            # ✅ 修正: プール作成時にcursor_factoryを設定
-            self.pool = pg_pool.SimpleConnectionPool(
-                1,  # minconn
-                10, # maxconn
-                self.config.DATABASE_URL,
-                cursor_factory=RealDictCursor  # ✅ ここで設定
-            )
-            logger.info("✅ PostgreSQL connection pool initialized with RealDictCursor")
-        except Exception as e:
-            logger.error(f"❌ Failed to create connection pool: {e}", exc_info=True)
-            self.use_postgres = False
-            logger.info("⚠️ Falling back to SQLite")
+    def _init_pool(self):
+        """コネクションプール初期化（RealDictCursorをデフォルトに設定）"""
+        if self.use_postgres and self.config.DATABASE_URL:
+            try:
+                logger.info("🔌 Creating PostgreSQL connection pool...")
+                # ✅ 修正: プール作成時にcursor_factoryを設定
+                self.pool = pg_pool.SimpleConnectionPool(
+                    1,  # minconn
+                    10, # maxconn
+                    self.config.DATABASE_URL,
+                    cursor_factory=RealDictCursor  # ✅ ここで設定
+                )
+                logger.info("✅ PostgreSQL connection pool initialized with RealDictCursor")
+            except Exception as e:
+                logger.error(f"❌ Failed to create connection pool: {e}", exc_info=True)
+                self.use_postgres = False
+                logger.info("⚠️ Falling back to SQLite")
     
     @contextmanager
     def get_db(self):
@@ -57,14 +57,13 @@ def _init_pool(self):
                 conn = self.pool.getconn()
                 conn.set_session(autocommit=False)
                 
-                # ✅ RealDictCursor を使用
-                original_cursor_factory = conn.cursor_factory
-                conn.cursor_factory = RealDictCursor
+                # ✅ 修正: プール作成時に既にRealDictCursorが設定されているため不要だが、念のため確認
+                if conn.cursor_factory != RealDictCursor:
+                    logger.warning("⚠️ Cursor factory not set, applying RealDictCursor")
+                    conn.cursor_factory = RealDictCursor
                 
                 yield conn
                 
-                # 元に戻す
-                conn.cursor_factory = original_cursor_factory
             except Exception as e:
                 if conn:
                     conn.rollback()
@@ -158,11 +157,13 @@ def _init_pool(self):
             conn.commit()
             logger.info("✅ PostgreSQL tables created")
             
-            # ✅ デモユーザー作成
+            # ✅ デモユーザー作成（既存のハッシュを確認）
             from werkzeug.security import generate_password_hash
             
-            cursor.execute("SELECT id FROM users WHERE username = %s", ('demo',))
-            if not cursor.fetchone():
+            cursor.execute("SELECT id, username, password_hash FROM users WHERE username = %s", ('demo',))
+            existing_demo = cursor.fetchone()
+            
+            if not existing_demo:
                 demo_hash = generate_password_hash('demo123')
                 logger.info(f"🔐 Creating demo user (hash: {demo_hash[:30]}...)")
                 cursor.execute("INSERT INTO users (username, password_hash) VALUES (%s, %s)",
@@ -170,7 +171,8 @@ def _init_pool(self):
                 conn.commit()
                 logger.info("✅ Demo user created: demo/demo123")
             else:
-                logger.info("ℹ️ Demo user already exists")
+                logger.info(f"ℹ️ Demo user already exists (ID: {existing_demo['id']})")
+                logger.info(f"🔑 Demo user hash preview: {existing_demo['password_hash'][:50]}...")
             
             logger.info("✅ PostgreSQL database initialized successfully")
         
@@ -249,4 +251,3 @@ def _init_pool(self):
 
 # グローバルデータベースマネージャー
 db_manager = DatabaseManager()
-
