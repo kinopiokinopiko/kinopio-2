@@ -7,7 +7,15 @@
     * {
         box-sizing: border-box;
     }
-    
+    /* 0の場合のスタイル */
+.badge-percentage.zero {
+    background: #333;
+    color: white;
+}
+
+.badge-amount.zero {
+    color: #333;
+}
     .header-bar {
         display: flex;
         justify-content: space-between;
@@ -509,3 +517,4 @@
 {% block scripts %}
 {% include 'components/dashboard_scripts.html' %}
 {% endblock %}
+
