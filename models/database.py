@@ -27,21 +27,23 @@ class DatabaseManager:
         if self.use_postgres:
             self._init_pool()
     
-    def _init_pool(self):
-        """コネクションプール初期化"""
-        if self.use_postgres and self.config.DATABASE_URL:
-            try:
-                logger.info("🔌 Creating PostgreSQL connection pool...")
-                self.pool = pg_pool.SimpleConnectionPool(
-                    1,  # minconn
-                    10, # maxconn
-                    self.config.DATABASE_URL
-                )
-                logger.info("✅ PostgreSQL connection pool initialized")
-            except Exception as e:
-                logger.error(f"❌ Failed to create connection pool: {e}", exc_info=True)
-                self.use_postgres = False
-                logger.info("⚠️ Falling back to SQLite")
+def _init_pool(self):
+    """コネクションプール初期化（RealDictCursorをデフォルトに設定）"""
+    if self.use_postgres and self.config.DATABASE_URL:
+        try:
+            logger.info("🔌 Creating PostgreSQL connection pool...")
+            # ✅ 修正: プール作成時にcursor_factoryを設定
+            self.pool = pg_pool.SimpleConnectionPool(
+                1,  # minconn
+                10, # maxconn
+                self.config.DATABASE_URL,
+                cursor_factory=RealDictCursor  # ✅ ここで設定
+            )
+            logger.info("✅ PostgreSQL connection pool initialized with RealDictCursor")
+        except Exception as e:
+            logger.error(f"❌ Failed to create connection pool: {e}", exc_info=True)
+            self.use_postgres = False
+            logger.info("⚠️ Falling back to SQLite")
     
     @contextmanager
     def get_db(self):
@@ -247,3 +249,4 @@ class DatabaseManager:
 
 # グローバルデータベースマネージャー
 db_manager = DatabaseManager()
+
