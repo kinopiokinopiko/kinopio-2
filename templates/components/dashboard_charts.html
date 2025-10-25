@@ -1,1 +1,103 @@
+<!-- チャートセクション -->
+<div class="chart-container-with-tabs">
+    <div class="tab-nav">
+        <button class="tab-btn active" onclick="showTab('portfolio', this)">ポートフォリオ</button>
+        <button class="tab-btn" onclick="showTab('line', this)">折れ線グラフ推移</button>
+        <button class="tab-btn" onclick="showTab('bar', this)">棒グラフ推移</button>
+    </div>
 
+    <div class="tab-content-wrapper">
+        <!-- ポートフォリオ円グラフ -->
+        <div id="portfolio-content" class="tab-content active">
+            <div class="chart-canvas-container">
+                 <canvas id="assetPieChart"></canvas>
+            </div>
+        </div>
+
+        <!-- 折れ線グラフ -->
+        <div id="line-content" class="tab-content">
+            <div class="legend-controls">
+                <label class="legend-item">
+                    <input type="checkbox" id="toggle-all-lines">
+                    <b>全選択</b>
+                </label>
+                <label class="legend-item">
+                    <input type="checkbox" class="line-toggle" data-dataset-index="0" checked>
+                    <span class="legend-color-box" style="background-color: #808080;"></span>総資産
+                </label>
+                <label class="legend-item">
+                    <input type="checkbox" class="line-toggle" data-dataset-index="1">
+                    <span class="legend-color-box" style="background-color: #E63946;"></span>日本株
+                </label>
+                <label class="legend-item">
+                    <input type="checkbox" class="line-toggle" data-dataset-index="2">
+                    <span class="legend-color-box" style="background-color: #457B9D;"></span>米国株
+                </label>
+                <label class="legend-item">
+                    <input type="checkbox" class="line-toggle" data-dataset-index="3">
+                    <span class="legend-color-box" style="background-color: #F4A261;"></span>現金
+                </label>
+                <label class="legend-item">
+                    <input type="checkbox" class="line-toggle" data-dataset-index="4">
+                    <span class="legend-color-box" style="background-color: #E9C46A;"></span>金
+                </label>
+                <label class="legend-item">
+                    <input type="checkbox" class="line-toggle" data-dataset-index="5">
+                    <span class="legend-color-box" style="background-color: #9B5DE5;"></span>暗号資産
+                </label>
+                <label class="legend-item">
+                    <input type="checkbox" class="line-toggle" data-dataset-index="6">
+                    <span class="legend-color-box" style="background-color: #52B788;"></span>投資信託
+                </label>
+                <label class="legend-item">
+                    <input type="checkbox" class="line-toggle" data-dataset-index="7">
+                    <span class="legend-color-box" style="background-color: #F15BB5;"></span>保険
+                </label>
+            </div>
+            <div class="chart-canvas-container">
+                <canvas id="assetLineChart"></canvas>
+            </div>
+        </div>
+
+        <!-- 棒グラフ -->
+        <div id="bar-content" class="tab-content">
+            <div class="legend-controls">
+                <label class="legend-item">
+                    <input type="checkbox" id="toggle-all-bars" checked>
+                    <b>全選択</b>
+                </label>
+                <label class="legend-item">
+                    <input type="checkbox" class="bar-toggle" data-dataset-index="0" checked>
+                    <span class="legend-color-box" style="background-color: #E63946;"></span>日本株
+                </label>
+                <label class="legend-item">
+                    <input type="checkbox" class="bar-toggle" data-dataset-index="1" checked>
+                    <span class="legend-color-box" style="background-color: #457B9D;"></span>米国株
+                </label>
+                <label class="legend-item">
+                    <input type="checkbox" class="bar-toggle" data-dataset-index="2" checked>
+                    <span class="legend-color-box" style="background-color: #F4A261;"></span>現金
+                </label>
+                <label class="legend-item">
+                    <input type="checkbox" class="bar-toggle" data-dataset-index="3" checked>
+                    <span class="legend-color-box" style="background-color: #E9C46A;"></span>金
+                </label>
+                <label class="legend-item">
+                    <input type="checkbox" class="bar-toggle" data-dataset-index="4" checked>
+                    <span class="legend-color-box" style="background-color: #9B5DE5;"></span>暗号資産
+                </label>
+                <label class="legend-item">
+                    <input type="checkbox" class="bar-toggle" data-dataset-index="5" checked>
+                    <span class="legend-color-box" style="background-color: #52B788;"></span>投資信託
+                </label>
+                <label class="legend-item">
+                    <input type="checkbox" class="bar-toggle" data-dataset-index="6" checked>
+                    <span class="legend-color-box" style="background-color: #F15BB5;"></span>保険
+                </label>
+            </div>
+            <div class="chart-canvas-container">
+                <canvas id="assetHistoryChart"></canvas>
+            </div>
+        </div>
+    </div>
+</div>
