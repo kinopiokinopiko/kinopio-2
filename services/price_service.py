@@ -14,100 +14,100 @@ class PriceService:
         })
     
     def fetch_price(self, asset):
-    """単一資産の価格を取得"""
-    try:
-        # ✅ 修正: assetを辞書型に変換
-        if hasattr(asset, 'keys'):
-            # dict-likeオブジェクト（RealDictRowなど）
-            asset_dict = dict(asset)
-        elif isinstance(asset, dict):
-            asset_dict = asset
-        else:
-            # タプルの場合（通常は発生しないが念のため）
-            logger.error(f"❌ Unexpected asset type: {type(asset)}")
-            return None
-        
-        asset_id = asset_dict['id']
-        asset_type = asset_dict['asset_type']
-        symbol = asset_dict['symbol']
-        
-        logger.debug(f"🔍 Fetching price for {symbol} ({asset_type})")
-        
-        # 現金と保険は価格取得不要
-        if asset_type in ['cash', 'insurance']:
-            return None
-        
-        # キャッシュチェック
-        cache_key = f"{asset_type}:{symbol}"
-        cached = self.cache.get(cache_key)
-        if cached:
-            logger.debug(f"💾 Using cached price for {symbol}")
-            return {
+        """単一資産の価格を取得"""
+        try:
+            # ✅ 修正: assetを辞書型に変換
+            if hasattr(asset, 'keys'):
+                # dict-likeオブジェクト（RealDictRowなど）
+                asset_dict = dict(asset)
+            elif isinstance(asset, dict):
+                asset_dict = asset
+            else:
+                # タプルの場合（通常は発生しないが念のため）
+                logger.error(f"❌ Unexpected asset type: {type(asset)}")
+                return None
+            
+            asset_id = asset_dict['id']
+            asset_type = asset_dict['asset_type']
+            symbol = asset_dict['symbol']
+            
+            logger.debug(f"🔍 Fetching price for {symbol} ({asset_type})")
+            
+            # 現金と保険は価格取得不要
+            if asset_type in ['cash', 'insurance']:
+                return None
+            
+            # キャッシュチェック
+            cache_key = f"{asset_type}:{symbol}"
+            cached = self.cache.get(cache_key)
+            if cached:
+                logger.debug(f"💾 Using cached price for {symbol}")
+                return {
+                    'id': asset_id,
+                    'symbol': symbol,
+                    'price': cached['price'],
+                    'name': cached.get('name', symbol)
+                }
+            
+            # 価格取得
+            price = 0.0
+            name = symbol
+            
+            if asset_type == 'jp_stock':
+                price, name = self._fetch_jp_stock(symbol)
+            elif asset_type == 'us_stock':
+                price, name = self._fetch_us_stock(symbol)
+            elif asset_type == 'gold':
+                price, name = self._fetch_gold_price()
+            elif asset_type == 'crypto':
+                price, name = self._fetch_crypto(symbol)
+            elif asset_type == 'investment_trust':
+                price, name = self._fetch_investment_trust(symbol)
+            else:
+                logger.warning(f"⚠️ Unknown asset type: {asset_type}")
+                return None
+            
+            # キャッシュに保存
+            self.cache.set(cache_key, {'price': price, 'name': name})
+            
+            # ✅ 必ず辞書型で返す
+            result = {
                 'id': asset_id,
                 'symbol': symbol,
-                'price': cached['price'],
-                'name': cached.get('name', symbol)
+                'price': price,
+                'name': name
             }
+            
+            logger.info(f"✅ Fetched price for {symbol}: ¥{price:,.2f}")
+            return result
         
-        # 価格取得
-        price = 0.0
-        name = symbol
-        
-        if asset_type == 'jp_stock':
-            price, name = self._fetch_jp_stock(symbol)
-        elif asset_type == 'us_stock':
-            price, name = self._fetch_us_stock(symbol)
-        elif asset_type == 'gold':
-            price, name = self._fetch_gold_price()
-        elif asset_type == 'crypto':
-            price, name = self._fetch_crypto(symbol)
-        elif asset_type == 'investment_trust':
-            price, name = self._fetch_investment_trust(symbol)
-        else:
-            logger.warning(f"⚠️ Unknown asset type: {asset_type}")
+        except Exception as e:
+            logger.error(f"❌ Error fetching price for {symbol if 'symbol' in locals() else 'unknown'}: {e}", exc_info=True)
             return None
-        
-        # キャッシュに保存
-        self.cache.set(cache_key, {'price': price, 'name': name})
-        
-        # ✅ 必ず辞書型で返す
-        result = {
-            'id': asset_id,
-            'symbol': symbol,
-            'price': price,
-            'name': name
-        }
-        
-        logger.info(f"✅ Fetched price for {symbol}: ¥{price:,.2f}")
-        return result
-    
-    except Exception as e:
-        logger.error(f"❌ Error fetching price for {symbol if 'symbol' in locals() else 'unknown'}: {e}", exc_info=True)
-        return None
     
     def fetch_prices_parallel(self, assets):
-    """複数資産の価格を並列取得"""
-    if not assets:
-        logger.warning("⚠️ No assets to fetch prices for")
-        return []
-    
-    max_workers = min(self.config.MAX_WORKERS, len(assets))
-    updated_prices = []
-    
-    logger.info(f"🔄 Starting parallel price fetch for {len(assets)} assets with {max_workers} workers")
-    
-    try:
-        with concurrent.futures.ThreadPoolExecutor(max_workers=max_workers) as executor:
-            results = executor.map(self.fetch_price, assets)
-            # ✅ 修正: Noneを除外し、辞書型のリストを返す
-            updated_prices = [res for res in results if res is not None and isinstance(res, dict)]
+        """複数資産の価格を並列取得"""
+        if not assets:
+            logger.warning("⚠️ No assets to fetch prices for")
+            return []
         
-        logger.info(f"✅ Completed parallel fetch: {len(updated_prices)} prices updated")
-        return updated_prices
-    
-    except Exception as e:
-        logger.error(f"❌ Error in parallel fetch: {e}", exc_info=True)
-        return []
+        max_workers = min(self.config.MAX_WORKERS, len(assets))
+        updated_prices = []
+        
+        logger.info(f"🔄 Starting parallel price fetch for {len(assets)} assets with {max_workers} workers")
+        
+        try:
+            with concurrent.futures.ThreadPoolExecutor(max_workers=max_workers) as executor:
+                results = executor.map(self.fetch_price, assets)
+                # ✅ 修正: Noneを除外し、辞書型のリストを返す
+                updated_prices = [res for res in results if res is not None and isinstance(res, dict)]
+            
+            logger.info(f"✅ Completed parallel fetch: {len(updated_prices)} prices updated")
+            return updated_prices
+        
+        except Exception as e:
+            logger.error(f"❌ Error in parallel fetch: {e}", exc_info=True)
+            return []
     
     def _fetch_jp_stock(self, symbol):
         """日本株の価格を取得（Yahoo Finance Japan）"""
@@ -308,5 +308,3 @@ class PriceService:
 # グローバルインスタンス
 from config import get_config
 price_service = PriceService(get_config())
-
-
