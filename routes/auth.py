@@ -1,112 +1,155 @@
-from flask import Blueprint, render_template, request, session, redirect, url_for, flash
+from flask import Blueprint, render_template, request, redirect, url_for, session, flash
+from werkzeug.security import check_password_hash, generate_password_hash
 from models import db_manager
-from models.user import UserService
 from utils import logger
-from config import get_config
-
-# ================================================================================
-# 🔐 認証関連
-# ================================================================================
 
 auth_bp = Blueprint('auth', __name__)
 
-@auth_bp.route('/register', methods=['GET', 'POST'])
-def register():
-    """新規登録"""
-    if request.method == 'POST':
-        username = request.form.get('username', '').strip()
-        password = request.form.get('password', '').strip()
-        confirm_password = request.form.get('confirm_password', '').strip()
-        
-        logger.info(f"📝 Registration attempt for user: {username}")
-        
-        # バリデーション
-        if not username or len(username) < 3:
-            flash('ユーザー名は3文字以上で入力してください', 'error')
-            return redirect(url_for('auth.register'))
-        
-        if not password or len(password) < 6:
-            flash('パスワードは6文字以上で入力してください', 'error')
-            return redirect(url_for('auth.register'))
-        
-        if password != confirm_password:
-            flash('パスワードが一致しません', 'error')
-            return redirect(url_for('auth.register'))
-        
-        try:
-            config = get_config()
-            user_service = UserService(db_manager, config.USE_POSTGRES)
-            user_service.create_user(username, password)
-            flash('アカウントを作成しました。ログインしてください。', 'success')
-            logger.info(f"✅ Registration successful for user: {username}")
-            return redirect(url_for('auth.login'))
-        except ValueError as e:
-            logger.warning(f"⚠️ Registration validation error: {e}")
-            flash(str(e), 'error')
-            return redirect(url_for('auth.register'))
-        except Exception as e:
-            logger.error(f"❌ Registration error: {e}", exc_info=True)
-            flash('登録に失敗しました', 'error')
-            return redirect(url_for('auth.register'))
-    
-    return render_template('register.html')
+@auth_bp.route('/')
+def index():
+    """ルートページ - ログイン済みならダッシュボードへ"""
+    if 'user_id' in session:
+        return redirect(url_for('dashboard.dashboard'))
+    return redirect(url_for('auth.login'))
 
 @auth_bp.route('/login', methods=['GET', 'POST'])
 def login():
-    """ログイン"""
+    """ログインページ"""
     if request.method == 'POST':
         username = request.form.get('username', '').strip()
-        password = request.form.get('password', '').strip()
+        password = request.form.get('password', '')
         
         logger.info(f"🔐 Login attempt for user: {username}")
         
+        # 入力検証
         if not username or not password:
-            logger.warning("❌ Login attempt without username or password")
+            logger.warning(f"❌ Empty username or password")
             flash('ユーザー名とパスワードを入力してください', 'error')
-            return redirect(url_for('auth.login'))
+            return render_template('login.html')
         
         try:
-            config = get_config()
-            logger.info(f"📊 Database mode: {'PostgreSQL' if config.USE_POSTGRES else 'SQLite'}")
-            
-            # ユーザーサービスの初期化
-            user_service = UserService(db_manager, config.USE_POSTGRES)
-            logger.info(f"✅ UserService initialized")
-            
-            # パスワード検証
-            is_valid = user_service.verify_user(username, password)
-            
-            if is_valid:
-                # ユーザー情報を再取得してセッションに保存
-                user = user_service.get_user_by_username(username)
-                if user:
-                    session['user_id'] = user.id
-                    session['username'] = user.username
-                    session.permanent = True
-                    logger.info(f"✅ Login successful for user: {username} (ID: {user.id})")
-                    flash(f'{username}さん、ようこそ！', 'success')
-                    return redirect(url_for('dashboard.dashboard'))
+            with db_manager.get_db() as conn:
+                if db_manager.use_postgres:
+                    from psycopg2.extras import RealDictCursor
+                    c = conn.cursor(cursor_factory=RealDictCursor)
+                    logger.info("🔌 Using PostgreSQL for login")
                 else:
-                    logger.error(f"❌ User object is None after verification")
-                    flash('ログインに失敗しました', 'error')
-                    return redirect(url_for('auth.login'))
-            else:
-                logger.warning(f"❌ Invalid credentials for user: {username}")
-                flash('ユーザー名またはパスワードが正しくありません', 'error')
-                return redirect(url_for('auth.login'))
+                    c = conn.cursor()
+                    logger.info("🔌 Using SQLite for login")
+                
+                # ユーザー検索
+                if db_manager.use_postgres:
+                    c.execute('SELECT id, username, password_hash FROM users WHERE username = %s', (username,))
+                else:
+                    c.execute('SELECT id, username, password_hash FROM users WHERE username = ?', (username,))
+                
+                user = c.fetchone()
+                
+                if user:
+                    logger.info(f"✅ User found: {username} (ID: {user['id']})")
+                    logger.info(f"🔑 Stored hash preview: {user['password_hash'][:50]}...")
+                    
+                    # パスワード検証
+                    if check_password_hash(user['password_hash'], password):
+                        logger.info(f"✅ Password verified for user: {username}")
+                        session['user_id'] = user['id']
+                        session['username'] = user['username']
+                        logger.info(f"✅ Session created for user: {username}")
+                        flash(f'{username}さん、ようこそ！', 'success')
+                        return redirect(url_for('dashboard.dashboard'))
+                    else:
+                        logger.warning(f"❌ Invalid password for user: {username}")
+                        flash('ユーザー名またはパスワードが間違っています', 'error')
+                else:
+                    logger.warning(f"❌ User not found: {username}")
+                    flash('ユーザー名またはパスワードが間違っています', 'error')
         
         except Exception as e:
             logger.error(f"❌ Login error: {e}", exc_info=True)
-            flash('ログインに失敗しました。しばらく時間をおいてから再度お試しください。', 'error')
-            return redirect(url_for('auth.login'))
+            flash('ログイン処理中にエラーが発生しました', 'error')
+        
+        return render_template('login.html')
     
+    # GET リクエスト
     return render_template('login.html')
+
+@auth_bp.route('/register', methods=['GET', 'POST'])
+def register():
+    """ユーザー登録ページ"""
+    if request.method == 'POST':
+        username = request.form.get('username', '').strip()
+        password = request.form.get('password', '')
+        password_confirm = request.form.get('password_confirm', '')
+        
+        logger.info(f"📝 Registration attempt for user: {username}")
+        
+        # 入力検証
+        if not username or not password or not password_confirm:
+            flash('全ての項目を入力してください', 'error')
+            return render_template('register.html')
+        
+        if len(username) < 3:
+            flash('ユーザー名は3文字以上で入力してください', 'error')
+            return render_template('register.html')
+        
+        if len(password) < 6:
+            flash('パスワードは6文字以上で入力してください', 'error')
+            return render_template('register.html')
+        
+        if password != password_confirm:
+            flash('パスワードが一致しません', 'error')
+            return render_template('register.html')
+        
+        try:
+            with db_manager.get_db() as conn:
+                if db_manager.use_postgres:
+                    from psycopg2.extras import RealDictCursor
+                    c = conn.cursor(cursor_factory=RealDictCursor)
+                else:
+                    c = conn.cursor()
+                
+                # ユーザー名の重複チェック
+                if db_manager.use_postgres:
+                    c.execute('SELECT id FROM users WHERE username = %s', (username,))
+                else:
+                    c.execute('SELECT id FROM users WHERE username = ?', (username,))
+                
+                if c.fetchone():
+                    logger.warning(f"❌ Username already exists: {username}")
+                    flash('このユーザー名は既に使用されています', 'error')
+                    return render_template('register.html')
+                
+                # パスワードをハッシュ化
+                password_hash = generate_password_hash(password)
+                logger.info(f"🔐 Generated hash preview: {password_hash[:50]}...")
+                
+                # ユーザー登録
+                if db_manager.use_postgres:
+                    c.execute('INSERT INTO users (username, password_hash) VALUES (%s, %s)',
+                             (username, password_hash))
+                else:
+                    c.execute('INSERT INTO users (username, password_hash) VALUES (?, ?)',
+                             (username, password_hash))
+                
+                conn.commit()
+                logger.info(f"✅ User registered successfully: {username}")
+                flash('ユーザー登録が完了しました。ログインしてください。', 'success')
+                return redirect(url_for('auth.login'))
+        
+        except Exception as e:
+            logger.error(f"❌ Registration error: {e}", exc_info=True)
+            flash('登録処理中にエラーが発生しました', 'error')
+        
+        return render_template('register.html')
+    
+    # GET リクエスト
+    return render_template('register.html')
 
 @auth_bp.route('/logout')
 def logout():
     """ログアウト"""
     username = session.get('username', 'Unknown')
     session.clear()
-    logger.info(f"✅ Logout: {username}")
-    flash('ログアウトしました', 'success')
+    logger.info(f"👋 User logged out: {username}")
+    flash('ログアウトしました', 'info')
     return redirect(url_for('auth.login'))
