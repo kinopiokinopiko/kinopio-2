@@ -468,7 +468,7 @@
             <div class="header-top">
                 <div class="user-name">👋 {{ user_name }}</div>
                 <div class="btn-group">
-                    <form action="{{ url_for('update_all_prices') }}" method="POST" style="display: inline;">
+                    <form action="{{ url_for('assets.update_all_prices') }}" method="POST" style="display: inline;">
                         <button type="submit" class="btn btn-primary">🔄 更新</button>
                     </form>
                     <a href="{{ url_for('logout') }}" class="btn btn-secondary">ログアウト</a>
@@ -830,3 +830,4 @@
     </script>
 </body>
 </html>
+
