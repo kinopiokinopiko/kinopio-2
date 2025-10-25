@@ -18,7 +18,8 @@ def get_current_user():
         return None
     
     with db_manager.get_db() as conn:
-        c = conn.cursor()
+        # ✅ 修正: db_manager.get_cursor()を使用
+        c = db_manager.get_cursor(conn)
         
         if use_postgres:
             c.execute('SELECT * FROM users WHERE id = %s', (session['user_id'],))
@@ -35,7 +36,8 @@ def manage_assets(asset_type):
         return redirect(url_for('auth.login'))
     
     with db_manager.get_db() as conn:
-        c = conn.cursor()
+        # ✅ 修正: db_manager.get_cursor()を使用
+        c = db_manager.get_cursor(conn)
         
         if use_postgres:
             c.execute('''SELECT * FROM assets WHERE user_id = %s AND asset_type = %s
@@ -103,7 +105,8 @@ def add_asset():
             name = name or symbol
     
     with db_manager.get_db() as conn:
-        c = conn.cursor()
+        # ✅ 修正: db_manager.get_cursor()を使用
+        c = db_manager.get_cursor(conn)
         
         if use_postgres:
             c.execute('''SELECT id, quantity, avg_cost FROM assets 
@@ -177,7 +180,8 @@ def edit_asset(asset_id):
         return redirect(url_for('auth.login'))
     
     with db_manager.get_db() as conn:
-        c = conn.cursor()
+        # ✅ 修正: db_manager.get_cursor()を使用
+        c = db_manager.get_cursor(conn)
         
         if use_postgres:
             c.execute('SELECT * FROM assets WHERE id = %s AND user_id = %s', (asset_id, user['id']))
@@ -207,7 +211,8 @@ def update_asset():
     avg_cost = float(request.form.get('avg_cost', 0)) if request.form.get('avg_cost') else 0
     
     with db_manager.get_db() as conn:
-        c = conn.cursor()
+        # ✅ 修正: db_manager.get_cursor()を使用
+        c = db_manager.get_cursor(conn)
         
         if use_postgres:
             c.execute('SELECT asset_type FROM assets WHERE id = %s AND user_id = %s',
@@ -280,7 +285,8 @@ def delete_asset():
     asset_id = request.form['asset_id']
     
     with db_manager.get_db() as conn:
-        c = conn.cursor()
+        # ✅ 修正: db_manager.get_cursor()を使用
+        c = db_manager.get_cursor(conn)
         
         if use_postgres:
             c.execute('SELECT asset_type, symbol FROM assets WHERE id = %s AND user_id = %s',
@@ -323,7 +329,8 @@ def update_prices():
         return 'OK'
     
     with db_manager.get_db() as conn:
-        c = conn.cursor()
+        # ✅ 修正: db_manager.get_cursor()を使用
+        c = db_manager.get_cursor(conn)
         
         if use_postgres:
             c.execute('SELECT id, symbol, asset_type FROM assets WHERE user_id = %s AND asset_type = %s',
@@ -342,7 +349,7 @@ def update_prices():
     
     if price_updates:
         with db_manager.get_db() as conn:
-            c = conn.cursor()
+            c = db_manager.get_cursor(conn)
             if use_postgres:
                 from psycopg2.extras import execute_values
                 update_query = "UPDATE assets SET price = data.price FROM (VALUES %s) AS data(price, id) WHERE assets.id = data.id"
