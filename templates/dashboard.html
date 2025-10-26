@@ -17,6 +17,10 @@
         color: #333;
     }
     
+    .detail-badge.zero {
+        background: #333;
+    }
+    
     .header-bar {
         display: flex;
         justify-content: space-between;
@@ -110,46 +114,39 @@
         line-height: 1.1;
     }
     
-    /* 損益と前日比の横並びコンテナ */
-    .profit-day-change-container {
-        display: flex;
-        align-items: flex-start;
-        justify-content: center;
+    /* 損益と前日比のグリッド表示 */
+    .profit-day-grid {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
         gap: 24px;
         margin-bottom: 24px;
         padding: 0 16px;
     }
     
-    .info-section {
-        flex: 1;
-        max-width: 200px;
+    .profit-section,
+    .day-change-section {
         display: flex;
         flex-direction: column;
         gap: 8px;
     }
     
-    .vertical-divider {
-        width: 2px;
-        height: 60px;
-        background: #e0e0e0;
-        flex-shrink: 0;
-    }
-    
-    .info-row-compact {
+    .profit-header,
+    .day-change-header {
         display: flex;
         align-items: center;
         justify-content: center;
         gap: 8px;
-        margin-bottom: 4px;
     }
     
-    .info-label-small {
+    .profit-label,
+    .day-change-label {
         font-size: 15px;
         color: #666;
         font-weight: 700;
     }
     
-    .info-percentage-badge-small {
+    .profit-badge,
+    .day-change-badge {
         padding: 4px 12px;
         border-radius: 16px;
         font-size: 14px;
@@ -157,26 +154,31 @@
         color: white;
     }
     
-    .info-percentage-badge-small.positive {
+    .profit-badge.positive,
+    .day-change-badge.positive {
         background: #dc3545;
     }
     
-    .info-percentage-badge-small.negative {
+    .profit-badge.negative,
+    .day-change-badge.negative {
         background: #28a745;
     }
     
-    .info-amount-small {
+    .profit-amount,
+    .day-change-amount {
         font-size: 28px;
         font-weight: 700;
         text-align: center;
         line-height: 1.2;
     }
     
-    .info-amount-small.positive {
+    .profit-amount.positive,
+    .day-change-amount.positive {
         color: #dc3545;
     }
     
-    .info-amount-small.negative {
+    .profit-amount.negative,
+    .day-change-amount.negative {
         color: #28a745;
     }
     
@@ -291,10 +293,6 @@
         background: #28a745;
     }
     
-    .detail-badge.zero {
-        background: #333;
-    }
-    
     .detail-amount {
         font-size: 14px;
         font-weight: 700;
@@ -303,6 +301,7 @@
     
     .profit-plus { color: #dc3545; }
     .profit-minus { color: #28a745; }
+    .zero { color: #333; }
 
     .chart-container-with-tabs {
         background: white;
@@ -479,17 +478,25 @@
             font-size: 56px;
         }
         
-        .info-label-small {
+        .profit-label,
+        .day-change-label {
             font-size: 16px;
         }
         
-        .info-percentage-badge-small {
+        .profit-badge,
+        .day-change-badge {
             font-size: 15px;
             padding: 5px 14px;
         }
         
-        .info-amount-small {
+        .profit-amount,
+        .day-change-amount {
             font-size: 32px;
+        }
+        
+        .profit-day-grid {
+            gap: 32px;
+            padding: 0 24px;
         }
     }
     
@@ -508,26 +515,25 @@
             font-size: 44px;
         }
         
-        .info-label-small {
+        .profit-label,
+        .day-change-label {
             font-size: 13px;
         }
         
-        .info-percentage-badge-small {
+        .profit-badge,
+        .day-change-badge {
             font-size: 12px;
             padding: 3px 10px;
         }
         
-        .info-amount-small {
+        .profit-amount,
+        .day-change-amount {
             font-size: 24px;
         }
         
-        .profit-day-change-container {
+        .profit-day-grid {
             gap: 16px;
             padding: 0 8px;
-        }
-        
-        .vertical-divider {
-            height: 50px;
         }
     }
 </style>
