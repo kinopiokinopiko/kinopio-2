@@ -16,21 +16,21 @@
             <div class="detail-row">
                 <span class="detail-label">損益</span>
                 <span class="detail-badge {% if jp_profit > 0 %}positive{% elif jp_profit < 0 %}negative{% else %}zero{% endif %}">
-                    {% if jp_profit > 0 %}+{% elif jp_profit < 0 %}{% endif %}{{ "{:.1f}".format(jp_profit_rate) }}%
+                    {% if jp_profit > 0 %}+{% elif jp_profit < 0 %}-{% endif %}{{ "{:.1f}".format(jp_profit_rate|abs) }}%
                 </span>
             </div>
             <div class="detail-amount {% if jp_profit > 0 %}profit-plus{% elif jp_profit < 0 %}profit-minus{% else %}zero{% endif %}">
-                {% if jp_profit > 0 %}+{% elif jp_profit < 0 %}{% endif %}¥{{ "{:,.0f}".format(jp_profit|abs) }}
+                {% if jp_profit != 0 %}{% if jp_profit > 0 %}+{% else %}-{% endif %}{% endif %}¥{{ "{:,.0f}".format(jp_profit|abs) }}
             </div>
             <!-- 前日比 -->
             <div class="detail-row">
                 <span class="detail-label">前日比</span>
                 <span class="detail-badge {% if jp_day_change > 0 %}positive{% elif jp_day_change < 0 %}negative{% else %}zero{% endif %}">
-                    {% if jp_day_change > 0 %}+{% elif jp_day_change < 0 %}{% endif %}{{ "{:.1f}".format(jp_day_change_rate) }}%
+                    {% if jp_day_change > 0 %}+{% elif jp_day_change < 0 %}-{% endif %}{{ "{:.1f}".format(jp_day_change_rate|abs) }}%
                 </span>
             </div>
             <div class="detail-amount {% if jp_day_change > 0 %}profit-plus{% elif jp_day_change < 0 %}profit-minus{% else %}zero{% endif %}">
-                {% if jp_day_change > 0 %}+{% elif jp_day_change < 0 %}{% endif %}¥{{ "{:,.0f}".format(jp_day_change|abs) }}
+                {% if jp_day_change != 0 %}{% if jp_day_change > 0 %}+{% else %}-{% endif %}{% endif %}¥{{ "{:,.0f}".format(jp_day_change|abs) }}
             </div>
         </div>
     </a>
@@ -51,21 +51,21 @@
             <div class="detail-row">
                 <span class="detail-label">損益</span>
                 <span class="detail-badge {% if us_profit_jpy > 0 %}positive{% elif us_profit_jpy < 0 %}negative{% else %}zero{% endif %}">
-                    {% if us_profit_jpy > 0 %}+{% elif us_profit_jpy < 0 %}{% endif %}{{ "{:.1f}".format(us_profit_rate) }}%
+                    {% if us_profit_jpy > 0 %}+{% elif us_profit_jpy < 0 %}-{% endif %}{{ "{:.1f}".format(us_profit_rate|abs) }}%
                 </span>
             </div>
             <div class="detail-amount {% if us_profit_jpy > 0 %}profit-plus{% elif us_profit_jpy < 0 %}profit-minus{% else %}zero{% endif %}">
-                {% if us_profit_jpy > 0 %}+{% elif us_profit_jpy < 0 %}{% endif %}¥{{ "{:,.0f}".format(us_profit_jpy|abs) }}
+                {% if us_profit_jpy != 0 %}{% if us_profit_jpy > 0 %}+{% else %}-{% endif %}{% endif %}¥{{ "{:,.0f}".format(us_profit_jpy|abs) }}
             </div>
             <!-- 前日比 -->
             <div class="detail-row">
                 <span class="detail-label">前日比</span>
                 <span class="detail-badge {% if us_day_change > 0 %}positive{% elif us_day_change < 0 %}negative{% else %}zero{% endif %}">
-                    {% if us_day_change > 0 %}+{% elif us_day_change < 0 %}{% endif %}{{ "{:.1f}".format(us_day_change_rate) }}%
+                    {% if us_day_change > 0 %}+{% elif us_day_change < 0 %}-{% endif %}{{ "{:.1f}".format(us_day_change_rate|abs) }}%
                 </span>
             </div>
             <div class="detail-amount {% if us_day_change > 0 %}profit-plus{% elif us_day_change < 0 %}profit-minus{% else %}zero{% endif %}">
-                {% if us_day_change > 0 %}+{% elif us_day_change < 0 %}{% endif %}¥{{ "{:,.0f}".format(us_day_change|abs) }}
+                {% if us_day_change != 0 %}{% if us_day_change > 0 %}+{% else %}-{% endif %}{% endif %}¥{{ "{:,.0f}".format(us_day_change|abs) }}
             </div>
         </div>
     </a>
@@ -97,21 +97,21 @@
             <div class="detail-row">
                 <span class="detail-label">損益</span>
                 <span class="detail-badge {% if gold_profit > 0 %}positive{% elif gold_profit < 0 %}negative{% else %}zero{% endif %}">
-                    {% if gold_profit > 0 %}+{% elif gold_profit < 0 %}{% endif %}{{ "{:.1f}".format(gold_profit_rate) }}%
+                    {% if gold_profit > 0 %}+{% elif gold_profit < 0 %}-{% endif %}{{ "{:.1f}".format(gold_profit_rate|abs) }}%
                 </span>
             </div>
             <div class="detail-amount {% if gold_profit > 0 %}profit-plus{% elif gold_profit < 0 %}profit-minus{% else %}zero{% endif %}">
-                {% if gold_profit > 0 %}+{% elif gold_profit < 0 %}{% endif %}¥{{ "{:,.0f}".format(gold_profit|abs) }}
+                {% if gold_profit != 0 %}{% if gold_profit > 0 %}+{% else %}-{% endif %}{% endif %}¥{{ "{:,.0f}".format(gold_profit|abs) }}
             </div>
             <!-- 前日比 -->
             <div class="detail-row">
                 <span class="detail-label">前日比</span>
                 <span class="detail-badge {% if gold_day_change > 0 %}positive{% elif gold_day_change < 0 %}negative{% else %}zero{% endif %}">
-                    {% if gold_day_change > 0 %}+{% elif gold_day_change < 0 %}{% endif %}{{ "{:.1f}".format(gold_day_change_rate) }}%
+                    {% if gold_day_change > 0 %}+{% elif gold_day_change < 0 %}-{% endif %}{{ "{:.1f}".format(gold_day_change_rate|abs) }}%
                 </span>
             </div>
             <div class="detail-amount {% if gold_day_change > 0 %}profit-plus{% elif gold_day_change < 0 %}profit-minus{% else %}zero{% endif %}">
-                {% if gold_day_change > 0 %}+{% elif gold_day_change < 0 %}{% endif %}¥{{ "{:,.0f}".format(gold_day_change|abs) }}
+                {% if gold_day_change != 0 %}{% if gold_day_change > 0 %}+{% else %}-{% endif %}{% endif %}¥{{ "{:,.0f}".format(gold_day_change|abs) }}
             </div>
         </div>
     </a>
@@ -132,21 +132,21 @@
             <div class="detail-row">
                 <span class="detail-label">損益</span>
                 <span class="detail-badge {% if crypto_profit > 0 %}positive{% elif crypto_profit < 0 %}negative{% else %}zero{% endif %}">
-                    {% if crypto_profit > 0 %}+{% elif crypto_profit < 0 %}{% endif %}{{ "{:.1f}".format(crypto_profit_rate) }}%
+                    {% if crypto_profit > 0 %}+{% elif crypto_profit < 0 %}-{% endif %}{{ "{:.1f}".format(crypto_profit_rate|abs) }}%
                 </span>
             </div>
             <div class="detail-amount {% if crypto_profit > 0 %}profit-plus{% elif crypto_profit < 0 %}profit-minus{% else %}zero{% endif %}">
-                {% if crypto_profit > 0 %}+{% elif crypto_profit < 0 %}{% endif %}¥{{ "{:,.0f}".format(crypto_profit|abs) }}
+                {% if crypto_profit != 0 %}{% if crypto_profit > 0 %}+{% else %}-{% endif %}{% endif %}¥{{ "{:,.0f}".format(crypto_profit|abs) }}
             </div>
             <!-- 前日比 -->
             <div class="detail-row">
                 <span class="detail-label">前日比</span>
                 <span class="detail-badge {% if crypto_day_change > 0 %}positive{% elif crypto_day_change < 0 %}negative{% else %}zero{% endif %}">
-                    {% if crypto_day_change > 0 %}+{% elif crypto_day_change < 0 %}{% endif %}{{ "{:.1f}".format(crypto_day_change_rate) }}%
+                    {% if crypto_day_change > 0 %}+{% elif crypto_day_change < 0 %}-{% endif %}{{ "{:.1f}".format(crypto_day_change_rate|abs) }}%
                 </span>
             </div>
             <div class="detail-amount {% if crypto_day_change > 0 %}profit-plus{% elif crypto_day_change < 0 %}profit-minus{% else %}zero{% endif %}">
-                {% if crypto_day_change > 0 %}+{% elif crypto_day_change < 0 %}{% endif %}¥{{ "{:,.0f}".format(crypto_day_change|abs) }}
+                {% if crypto_day_change != 0 %}{% if crypto_day_change > 0 %}+{% else %}-{% endif %}{% endif %}¥{{ "{:,.0f}".format(crypto_day_change|abs) }}
             </div>
         </div>
     </a>
@@ -167,21 +167,21 @@
             <div class="detail-row">
                 <span class="detail-label">損益</span>
                 <span class="detail-badge {% if investment_trust_profit > 0 %}positive{% elif investment_trust_profit < 0 %}negative{% else %}zero{% endif %}">
-                    {% if investment_trust_profit > 0 %}+{% elif investment_trust_profit < 0 %}{% endif %}{{ "{:.1f}".format(it_profit_rate) }}%
+                    {% if investment_trust_profit > 0 %}+{% elif investment_trust_profit < 0 %}-{% endif %}{{ "{:.1f}".format(it_profit_rate|abs) }}%
                 </span>
             </div>
             <div class="detail-amount {% if investment_trust_profit > 0 %}profit-plus{% elif investment_trust_profit < 0 %}profit-minus{% else %}zero{% endif %}">
-                {% if investment_trust_profit > 0 %}+{% elif investment_trust_profit < 0 %}{% endif %}¥{{ "{:,.0f}".format(investment_trust_profit|abs) }}
+                {% if investment_trust_profit != 0 %}{% if investment_trust_profit > 0 %}+{% else %}-{% endif %}{% endif %}¥{{ "{:,.0f}".format(investment_trust_profit|abs) }}
             </div>
             <!-- 前日比 -->
             <div class="detail-row">
                 <span class="detail-label">前日比</span>
                 <span class="detail-badge {% if investment_trust_day_change > 0 %}positive{% elif investment_trust_day_change < 0 %}negative{% else %}zero{% endif %}">
-                    {% if investment_trust_day_change > 0 %}+{% elif investment_trust_day_change < 0 %}{% endif %}{{ "{:.1f}".format(investment_trust_day_change_rate) }}%
+                    {% if investment_trust_day_change > 0 %}+{% elif investment_trust_day_change < 0 %}-{% endif %}{{ "{:.1f}".format(investment_trust_day_change_rate|abs) }}%
                 </span>
             </div>
             <div class="detail-amount {% if investment_trust_day_change > 0 %}profit-plus{% elif investment_trust_day_change < 0 %}profit-minus{% else %}zero{% endif %}">
-                {% if investment_trust_day_change > 0 %}+{% elif investment_trust_day_change < 0 %}{% endif %}¥{{ "{:,.0f}".format(investment_trust_day_change|abs) }}
+                {% if investment_trust_day_change != 0 %}{% if investment_trust_day_change > 0 %}+{% else %}-{% endif %}{% endif %}¥{{ "{:,.0f}".format(investment_trust_day_change|abs) }}
             </div>
         </div>
     </a>
@@ -202,21 +202,21 @@
             <div class="detail-row">
                 <span class="detail-label">損益</span>
                 <span class="detail-badge {% if insurance_profit > 0 %}positive{% elif insurance_profit < 0 %}negative{% else %}zero{% endif %}">
-                    {% if insurance_profit > 0 %}+{% elif insurance_profit < 0 %}{% endif %}{{ "{:.1f}".format(insurance_profit_rate) }}%
+                    {% if insurance_profit > 0 %}+{% elif insurance_profit < 0 %}-{% endif %}{{ "{:.1f}".format(insurance_profit_rate|abs) }}%
                 </span>
             </div>
             <div class="detail-amount {% if insurance_profit > 0 %}profit-plus{% elif insurance_profit < 0 %}profit-minus{% else %}zero{% endif %}">
-                {% if insurance_profit > 0 %}+{% elif insurance_profit < 0 %}{% endif %}¥{{ "{:,.0f}".format(insurance_profit|abs) }}
+                {% if insurance_profit != 0 %}{% if insurance_profit > 0 %}+{% else %}-{% endif %}{% endif %}¥{{ "{:,.0f}".format(insurance_profit|abs) }}
             </div>
             <!-- 前日比 -->
             <div class="detail-row">
                 <span class="detail-label">前日比</span>
                 <span class="detail-badge {% if insurance_day_change > 0 %}positive{% elif insurance_day_change < 0 %}negative{% else %}zero{% endif %}">
-                    {% if insurance_day_change > 0 %}+{% elif insurance_day_change < 0 %}{% endif %}{{ "{:.1f}".format(insurance_day_change_rate) }}%
+                    {% if insurance_day_change > 0 %}+{% elif insurance_day_change < 0 %}-{% endif %}{{ "{:.1f}".format(insurance_day_change_rate|abs) }}%
                 </span>
             </div>
             <div class="detail-amount {% if insurance_day_change > 0 %}profit-plus{% elif insurance_day_change < 0 %}profit-minus{% else %}zero{% endif %}">
-                {% if insurance_day_change > 0 %}+{% elif insurance_day_change < 0 %}{% endif %}¥{{ "{:,.0f}".format(insurance_day_change|abs) }}
+                {% if insurance_day_change != 0 %}{% if insurance_day_change > 0 %}+{% else %}-{% endif %}{% endif %}¥{{ "{:,.0f}".format(insurance_day_change|abs) }}
             </div>
         </div>
     </a>
