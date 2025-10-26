@@ -82,7 +82,7 @@
     .total-card {
         background: white;
         border-radius: 16px;
-        padding: 28px;
+        padding: 32px 24px;
         text-align: center;
         box-shadow: 0 2px 8px rgba(0,0,0,0.08);
         display: flex;
@@ -92,7 +92,7 @@
     }
     
     .total-label {
-        font-size: 15px;
+        font-size: 14px;
         color: #999;
         margin-bottom: 12px;
         font-weight: 700;
@@ -101,61 +101,82 @@
     }
     
     .total-amount {
-        font-size: 44px;
+        font-size: 52px;
         font-weight: 700;
         color: #333;
-        margin-bottom: 24px;
-        letter-spacing: -1px;
+        margin-bottom: 32px;
+        letter-spacing: -1.5px;
+        line-height: 1.1;
     }
     
-    .info-row {
+    /* 損益と前日比の横並びコンテナ */
+    .profit-day-change-container {
+        display: flex;
+        align-items: flex-start;
+        justify-content: center;
+        gap: 24px;
+        margin-bottom: 24px;
+        padding: 0 16px;
+    }
+    
+    .info-section {
+        flex: 1;
+        max-width: 200px;
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+    }
+    
+    .vertical-divider {
+        width: 2px;
+        height: 60px;
+        background: #e0e0e0;
+        flex-shrink: 0;
+    }
+    
+    .info-row-compact {
         display: flex;
         align-items: center;
         justify-content: center;
-        gap: 12px;
-        margin-bottom: 12px;
+        gap: 8px;
+        margin-bottom: 4px;
     }
     
-    .info-label {
-        font-size: 18px;
-        color: #333;
+    .info-label-small {
+        font-size: 15px;
+        color: #666;
         font-weight: 700;
     }
     
-    .info-percentage-badge {
-        padding: 6px 16px;
-        border-radius: 20px;
-        font-size: 16px;
+    .info-percentage-badge-small {
+        padding: 4px 12px;
+        border-radius: 16px;
+        font-size: 14px;
         font-weight: 700;
         color: white;
     }
     
-    .info-percentage-badge.positive {
+    .info-percentage-badge-small.positive {
         background: #dc3545;
     }
     
-    .info-percentage-badge.negative {
+    .info-percentage-badge-small.negative {
         background: #28a745;
     }
     
-    .info-amount {
-        font-size: 40px;
+    .info-amount-small {
+        font-size: 28px;
         font-weight: 700;
-        margin-bottom: 24px;
+        text-align: center;
+        line-height: 1.2;
     }
     
-    .info-amount.positive {
+    .info-amount-small.positive {
         color: #dc3545;
     }
     
-    .info-amount.negative {
+    .info-amount-small.negative {
         color: #28a745;
-    }
-    
-    .divider {
-        height: 1px;
-        background: #e0e0e0;
-        margin: 24px 0;
     }
     
     .update-time {
@@ -168,14 +189,14 @@
     .asset-grid {
         display: grid;
         grid-template-columns: repeat(2, 1fr);
-        gap: 16px;
+        gap: 12px;
         margin-bottom: 24px;
     }
     
     .asset-card {
         background: white;
         border-radius: 16px;
-        padding: 16px;
+        padding: 12px;
         cursor: pointer;
         transition: all 0.2s ease;
         text-decoration: none;
@@ -184,7 +205,7 @@
         flex-direction: column;
         box-shadow: 0 2px 8px rgba(0,0,0,0.08);
         border: 1px solid #f0f0f0;
-        min-height: 200px;
+        min-height: 180px;
     }
     
     .asset-card:hover {
@@ -199,38 +220,38 @@
     .card-header {
         display: flex;
         align-items: flex-start;
-        gap: 10px;
-        margin-bottom: 16px;
+        gap: 8px;
+        margin-bottom: 12px;
     }
     
     .card-icon {
-        width: 56px;
-        height: 56px;
-        border-radius: 14px;
+        width: 48px;
+        height: 48px;
+        border-radius: 12px;
         display: flex;
         align-items: center;
         justify-content: center;
-        font-size: 26px;
+        font-size: 22px;
         flex-shrink: 0;
     }
     
     .card-badges {
         display: flex;
         flex-direction: column;
-        gap: 4px;
+        gap: 2px;
         flex: 1;
         min-width: 0;
+        overflow: hidden;
     }
     
     .badge-item {
         display: flex;
         align-items: center;
-        gap: 4px;
-        flex-wrap: wrap;
+        gap: 3px;
     }
     
     .badge-label {
-        font-size: 10px;
+        font-size: 9px;
         color: #999;
         font-weight: 600;
         white-space: nowrap;
@@ -238,9 +259,9 @@
     }
     
     .badge-percentage {
-        padding: 3px 8px;
-        border-radius: 10px;
-        font-size: 11px;
+        padding: 2px 6px;
+        border-radius: 8px;
+        font-size: 9px;
         font-weight: 700;
         color: white;
         white-space: nowrap;
@@ -256,11 +277,13 @@
     }
     
     .badge-amount {
-        font-size: 11px;
+        font-size: 9px;
         font-weight: 700;
         display: block;
         width: 100%;
-        word-break: break-all;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
     }
     
     .card-body {
@@ -269,14 +292,14 @@
     }
     
     .card-name {
-        font-size: 14px;
+        font-size: 12px;
         color: #666;
-        margin-bottom: 8px;
+        margin-bottom: 6px;
         font-weight: 700;
     }
     
     .card-amount {
-        font-size: 22px;
+        font-size: 18px;
         font-weight: 700;
         color: #333;
         letter-spacing: -0.5px;
@@ -405,16 +428,31 @@
     @media (min-width: 768px) {
         .asset-grid {
             grid-template-columns: repeat(3, 1fr);
+            gap: 16px;
         }
         
         .asset-card {
             padding: 20px;
+            min-height: 220px;
+        }
+        
+        .card-header {
+            gap: 10px;
+            margin-bottom: 16px;
         }
         
         .card-icon {
             width: 70px;
             height: 70px;
             font-size: 32px;
+        }
+        
+        .card-badges {
+            gap: 4px;
+        }
+        
+        .badge-item {
+            gap: 4px;
         }
         
         .badge-label {
@@ -432,6 +470,7 @@
         
         .card-name {
             font-size: 16px;
+            margin-bottom: 8px;
         }
         
         .card-amount {
@@ -447,17 +486,21 @@
             font-size: 13px;
         }
         
-        .info-label {
-            font-size: 18px;
+        .total-amount {
+            font-size: 56px;
         }
         
-        .info-percentage-badge {
+        .info-label-small {
             font-size: 16px;
-            padding: 6px 16px;
         }
         
-        .info-amount {
-            font-size: 40px;
+        .info-percentage-badge-small {
+            font-size: 15px;
+            padding: 5px 14px;
+        }
+        
+        .info-amount-small {
+            font-size: 32px;
         }
     }
     
@@ -472,49 +515,30 @@
     }
     
     @media (max-width: 480px) {
-        .card-icon {
-            width: 48px;
-            height: 48px;
-            font-size: 22px;
+        .total-amount {
+            font-size: 44px;
         }
         
-        .badge-label {
-            font-size: 9px;
-        }
-        
-        .badge-percentage {
-            font-size: 10px;
-            padding: 2px 6px;
-        }
-        
-        .badge-amount {
-            font-size: 10px;
-        }
-        
-        .card-name {
+        .info-label-small {
             font-size: 13px;
         }
         
-        .card-amount {
-            font-size: 20px;
+        .info-percentage-badge-small {
+            font-size: 12px;
+            padding: 3px 10px;
         }
         
-        .info-label {
-            font-size: 16px;
+        .info-amount-small {
+            font-size: 24px;
         }
         
-        .info-percentage-badge {
-            font-size: 14px;
-            padding: 5px 12px;
+        .profit-day-change-container {
+            gap: 16px;
+            padding: 0 8px;
         }
         
-        .info-amount {
-            font-size: 32px;
-            margin-bottom: 20px;
-        }
-        
-        .total-amount {
-            font-size: 36px;
+        .vertical-divider {
+            height: 50px;
         }
     }
 </style>
