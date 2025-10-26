@@ -10,11 +10,11 @@
             <div class="profit-header">
                 <span class="profit-label">損益</span>
                 <span class="profit-badge {% if total_profit > 0 %}positive{% elif total_profit < 0 %}negative{% else %}zero{% endif %}">
-                    {% if total_profit > 0 %}+{% elif total_profit < 0 %}{% endif %}{{ "{:.2f}".format(total_profit_rate) }}%
+                    {% if total_profit > 0 %}+{% elif total_profit < 0 %}-{% endif %}{{ "{:.2f}".format(total_profit_rate|abs) }}%
                 </span>
             </div>
             <div class="profit-amount {% if total_profit > 0 %}positive{% elif total_profit < 0 %}negative{% else %}zero{% endif %}">
-                {% if total_profit > 0 %}+{% elif total_profit < 0 %}{% endif %}¥{{ "{:,.0f}".format(total_profit) }}
+                {% if total_profit > 0 %}+{% elif total_profit < 0 %}-{% endif %}¥{{ "{:,.0f}".format(total_profit|abs) }}
             </div>
         </div>
         
@@ -23,11 +23,11 @@
             <div class="day-change-header">
                 <span class="day-change-label">前日比</span>
                 <span class="day-change-badge {% if total_day_change > 0 %}positive{% elif total_day_change < 0 %}negative{% else %}zero{% endif %}">
-                    {% if total_day_change > 0 %}+{% elif total_day_change < 0 %}{% endif %}{{ "{:.2f}".format(total_day_change_rate) }}%
+                    {% if total_day_change > 0 %}+{% elif total_day_change < 0 %}-{% endif %}{{ "{:.2f}".format(total_day_change_rate|abs) }}%
                 </span>
             </div>
             <div class="day-change-amount {% if total_day_change > 0 %}positive{% elif total_day_change < 0 %}negative{% else %}zero{% endif %}">
-                {% if total_day_change > 0 %}+{% elif total_day_change < 0 %}{% endif %}¥{{ "{:,.0f}".format(total_day_change) }}
+                {% if total_day_change > 0 %}+{% elif total_day_change < 0 %}-{% endif %}¥{{ "{:,.0f}".format(total_day_change|abs) }}
             </div>
         </div>
     </div>
