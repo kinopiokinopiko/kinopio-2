@@ -3,28 +3,33 @@
     <div class="total-label">総資産</div>
     <div class="total-amount">¥{{ "{:,.0f}".format(total_assets) }}</div>
     
-    <!-- 損益セクション -->
-    <div class="info-row">
-        <span class="info-label">損益</span>
-        <span class="info-percentage-badge {% if total_profit >= 0 %}positive{% else %}negative{% endif %}">
-            {% if total_profit >= 0 %}+{% endif %}{{ "{:.2f}".format(total_profit_rate) }}%
-        </span>
-    </div>
-    <div class="info-amount {% if total_profit >= 0 %}positive{% else %}negative{% endif %}">
-        {% if total_profit >= 0 %}+{% endif %}¥{{ "{:,.0f}".format(total_profit) }}
-    </div>
-    
-    <div class="divider"></div>
-    
-    <!-- 前日比セクション -->
-    <div class="info-row">
-        <span class="info-label">前日比</span>
-        <span class="info-percentage-badge {% if total_day_change >= 0 %}positive{% else %}negative{% endif %}">
-            {% if total_day_change >= 0 %}+{% endif %}{{ "{:.2f}".format(total_day_change_rate) }}%
-        </span>
-    </div>
-    <div class="info-amount {% if total_day_change >= 0 %}positive{% else %}negative{% endif %}">
-        {% if total_day_change >= 0 %}+{% endif %}¥{{ "{:,.0f}".format(total_day_change) }}
+    <!-- 損益と前日比を横並び表示 -->
+    <div class="profit-day-grid">
+        <!-- 損益セクション -->
+        <div class="profit-section">
+            <div class="profit-header">
+                <span class="profit-label">損益</span>
+                <span class="profit-badge {% if total_profit > 0 %}positive{% elif total_profit < 0 %}negative{% else %}zero{% endif %}">
+                    {% if total_profit > 0 %}+{% elif total_profit < 0 %}{% endif %}{{ "{:.2f}".format(total_profit_rate) }}%
+                </span>
+            </div>
+            <div class="profit-amount {% if total_profit > 0 %}positive{% elif total_profit < 0 %}negative{% else %}zero{% endif %}">
+                {% if total_profit > 0 %}+{% elif total_profit < 0 %}{% endif %}¥{{ "{:,.0f}".format(total_profit) }}
+            </div>
+        </div>
+        
+        <!-- 前日比セクション -->
+        <div class="day-change-section">
+            <div class="day-change-header">
+                <span class="day-change-label">前日比</span>
+                <span class="day-change-badge {% if total_day_change > 0 %}positive{% elif total_day_change < 0 %}negative{% else %}zero{% endif %}">
+                    {% if total_day_change > 0 %}+{% elif total_day_change < 0 %}{% endif %}{{ "{:.2f}".format(total_day_change_rate) }}%
+                </span>
+            </div>
+            <div class="day-change-amount {% if total_day_change > 0 %}positive{% elif total_day_change < 0 %}negative{% else %}zero{% endif %}">
+                {% if total_day_change > 0 %}+{% elif total_day_change < 0 %}{% endif %}¥{{ "{:,.0f}".format(total_day_change) }}
+            </div>
+        </div>
     </div>
     
     <!-- 更新時刻 -->
