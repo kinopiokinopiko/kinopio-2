@@ -8,14 +8,15 @@
         box-sizing: border-box;
     }
     /* 0の場合のスタイル */
-.badge-percentage.zero {
-    background: #333;
-    color: white;
-}
+    .badge-percentage.zero {
+        background: #333;
+        color: white;
+    }
 
-.badge-amount.zero {
-    color: #333;
-}
+    .badge-amount.zero {
+        color: #333;
+    }
+    
     .header-bar {
         display: flex;
         justify-content: space-between;
@@ -196,7 +197,7 @@
     .asset-card {
         background: white;
         border-radius: 16px;
-        padding: 12px;
+        padding: 16px;
         cursor: pointer;
         transition: all 0.2s ease;
         text-decoration: none;
@@ -205,7 +206,7 @@
         flex-direction: column;
         box-shadow: 0 2px 8px rgba(0,0,0,0.08);
         border: 1px solid #f0f0f0;
-        min-height: 180px;
+        min-height: auto;
     }
     
     .asset-card:hover {
@@ -217,92 +218,87 @@
         transform: scale(0.98);
     }
     
-    .card-header {
+    .card-header-new {
         display: flex;
-        align-items: flex-start;
-        gap: 8px;
-        margin-bottom: 12px;
+        align-items: center;
+        gap: 12px;
+        margin-bottom: 16px;
     }
     
     .card-icon {
-        width: 48px;
-        height: 48px;
-        border-radius: 12px;
+        width: 60px;
+        height: 60px;
+        border-radius: 14px;
         display: flex;
         align-items: center;
         justify-content: center;
-        font-size: 22px;
+        font-size: 28px;
         flex-shrink: 0;
     }
     
-    .card-badges {
-        display: flex;
-        flex-direction: column;
-        gap: 2px;
+    .card-info {
         flex: 1;
         min-width: 0;
-        overflow: hidden;
     }
     
-    .badge-item {
-        display: flex;
-        align-items: center;
-        gap: 3px;
-    }
-    
-    .badge-label {
-        font-size: 9px;
+    .card-name-new {
+        font-size: 13px;
         color: #999;
+        margin-bottom: 4px;
         font-weight: 600;
-        white-space: nowrap;
-        flex-shrink: 0;
     }
     
-    .badge-percentage {
-        padding: 2px 6px;
-        border-radius: 8px;
-        font-size: 9px;
-        font-weight: 700;
-        color: white;
-        white-space: nowrap;
-        flex-shrink: 0;
-    }
-    
-    .badge-percentage.positive {
-        background: #dc3545;
-    }
-    
-    .badge-percentage.negative {
-        background: #28a745;
-    }
-    
-    .badge-amount {
-        font-size: 9px;
-        font-weight: 700;
-        display: block;
-        width: 100%;
-        overflow: hidden;
-        text-overflow: ellipsis;
-        white-space: nowrap;
-    }
-    
-    .card-body {
-        text-align: center;
-        margin-top: auto;
-    }
-    
-    .card-name {
-        font-size: 12px;
-        color: #666;
-        margin-bottom: 6px;
-        font-weight: 700;
-    }
-    
-    .card-amount {
-        font-size: 18px;
+    .card-amount-new {
+        font-size: 22px;
         font-weight: 700;
         color: #333;
         letter-spacing: -0.5px;
+    }
+    
+    .card-details {
+        display: flex;
+        flex-direction: column;
+        gap: 4px;
+        padding-left: 72px;
+    }
+    
+    .detail-row {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+    }
+    
+    .detail-label {
+        font-size: 12px;
+        color: #999;
+        font-weight: 600;
+        min-width: 45px;
+    }
+    
+    .detail-badge {
+        padding: 3px 10px;
+        border-radius: 12px;
+        font-size: 12px;
+        font-weight: 700;
+        color: white;
+    }
+    
+    .detail-badge.positive {
+        background: #dc3545;
+    }
+    
+    .detail-badge.negative {
+        background: #28a745;
+    }
+    
+    .detail-badge.zero {
+        background: #333;
+    }
+    
+    .detail-amount {
+        font-size: 14px;
+        font-weight: 700;
+        margin-bottom: 8px;
     }
     
     .profit-plus { color: #dc3545; }
@@ -433,12 +429,10 @@
         
         .asset-card {
             padding: 20px;
-            min-height: 220px;
         }
         
-        .card-header {
-            gap: 10px;
-            margin-bottom: 16px;
+        .card-header-new {
+            margin-bottom: 20px;
         }
         
         .card-icon {
@@ -447,34 +441,29 @@
             font-size: 32px;
         }
         
-        .card-badges {
-            gap: 4px;
-        }
-        
-        .badge-item {
-            gap: 4px;
-        }
-        
-        .badge-label {
-            font-size: 12px;
-        }
-        
-        .badge-percentage {
-            font-size: 14px;
-            padding: 5px 14px;
-        }
-        
-        .badge-amount {
+        .card-name-new {
             font-size: 14px;
         }
         
-        .card-name {
-            font-size: 16px;
-            margin-bottom: 8px;
-        }
-        
-        .card-amount {
+        .card-amount-new {
             font-size: 26px;
+        }
+        
+        .card-details {
+            padding-left: 82px;
+        }
+        
+        .detail-label {
+            font-size: 13px;
+        }
+        
+        .detail-badge {
+            font-size: 13px;
+            padding: 4px 12px;
+        }
+        
+        .detail-amount {
+            font-size: 16px;
         }
         
         .tab-btn {
