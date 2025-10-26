@@ -7,19 +7,6 @@
     * {
         box-sizing: border-box;
     }
-    /* 0の場合のスタイル */
-    .badge-percentage.zero {
-        background: #333;
-        color: white;
-    }
-
-    .badge-amount.zero {
-        color: #333;
-    }
-    
-    .detail-badge.zero {
-        background: #333;
-    }
     
     .header-bar {
         display: flex;
@@ -164,6 +151,12 @@
         background: #28a745;
     }
     
+    .profit-badge.zero,
+    .day-change-badge.zero {
+        background: #6c757d;
+        color: white;
+    }
+    
     .profit-amount,
     .day-change-amount {
         font-size: 28px;
@@ -182,6 +175,11 @@
         color: #28a745;
     }
     
+    .profit-amount.zero,
+    .day-change-amount.zero {
+        color: #333;
+    }
+    
     .update-time {
         font-size: 13px;
         color: #999;
@@ -192,14 +190,14 @@
     .asset-grid {
         display: grid;
         grid-template-columns: repeat(2, 1fr);
-        gap: 12px;
+        gap: 10px;
         margin-bottom: 24px;
     }
     
     .asset-card {
         background: white;
         border-radius: 16px;
-        padding: 16px;
+        padding: 14px;
         cursor: pointer;
         transition: all 0.2s ease;
         text-decoration: none;
@@ -223,18 +221,18 @@
     .card-header-new {
         display: flex;
         align-items: center;
-        gap: 12px;
-        margin-bottom: 16px;
+        gap: 10px;
+        margin-bottom: 14px;
     }
     
     .card-icon {
-        width: 60px;
-        height: 60px;
+        width: 56px;
+        height: 56px;
         border-radius: 14px;
         display: flex;
         align-items: center;
         justify-content: center;
-        font-size: 28px;
+        font-size: 26px;
         flex-shrink: 0;
     }
     
@@ -244,14 +242,14 @@
     }
     
     .card-name-new {
-        font-size: 13px;
+        font-size: 12px;
         color: #999;
         margin-bottom: 4px;
         font-weight: 600;
     }
     
     .card-amount-new {
-        font-size: 22px;
+        font-size: 20px;
         font-weight: 700;
         color: #333;
         letter-spacing: -0.5px;
@@ -260,27 +258,27 @@
     .card-details {
         display: flex;
         flex-direction: column;
-        gap: 4px;
-        padding-left: 72px;
+        gap: 3px;
+        padding-left: 66px;
     }
     
     .detail-row {
         display: flex;
         align-items: center;
-        gap: 8px;
+        gap: 6px;
     }
     
     .detail-label {
-        font-size: 12px;
+        font-size: 11px;
         color: #999;
         font-weight: 600;
-        min-width: 45px;
+        min-width: 42px;
     }
     
     .detail-badge {
-        padding: 3px 10px;
-        border-radius: 12px;
-        font-size: 12px;
+        padding: 2px 8px;
+        border-radius: 10px;
+        font-size: 11px;
         font-weight: 700;
         color: white;
     }
@@ -293,10 +291,15 @@
         background: #28a745;
     }
     
+    .detail-badge.zero {
+        background: #6c757d;
+        color: white;
+    }
+    
     .detail-amount {
-        font-size: 14px;
+        font-size: 13px;
         font-weight: 700;
-        margin-bottom: 8px;
+        margin-bottom: 6px;
     }
     
     .profit-plus { color: #dc3545; }
@@ -432,6 +435,7 @@
         
         .card-header-new {
             margin-bottom: 20px;
+            gap: 12px;
         }
         
         .card-icon {
@@ -450,6 +454,7 @@
         
         .card-details {
             padding-left: 82px;
+            gap: 4px;
         }
         
         .detail-label {
@@ -463,6 +468,7 @@
         
         .detail-amount {
             font-size: 16px;
+            margin-bottom: 8px;
         }
         
         .tab-btn {
@@ -534,6 +540,38 @@
         .profit-day-grid {
             gap: 16px;
             padding: 0 8px;
+        }
+        
+        .card-icon {
+            width: 50px;
+            height: 50px;
+            font-size: 24px;
+        }
+        
+        .card-name-new {
+            font-size: 11px;
+        }
+        
+        .card-amount-new {
+            font-size: 18px;
+        }
+        
+        .card-details {
+            padding-left: 60px;
+        }
+        
+        .detail-label {
+            font-size: 10px;
+            min-width: 38px;
+        }
+        
+        .detail-badge {
+            font-size: 10px;
+            padding: 2px 7px;
+        }
+        
+        .detail-amount {
+            font-size: 12px;
         }
     }
 </style>
