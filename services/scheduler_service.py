@@ -20,6 +20,7 @@ class SchedulerManager:
         self.scheduler = BackgroundScheduler(timezone='Asia/Tokyo')
         self.config = get_config()
         self.use_postgres = self.config.USE_POSTGRES
+        self.session = requests.Session()
     
     def scheduled_update_all_prices(self):
         """スケジュール実行: 全ユーザーの資産価格を更新"""
@@ -62,8 +63,43 @@ class SchedulerManager:
         except Exception as e:
             logger.error(f"❌ Critical error in scheduled_update_all_prices: {e}", exc_info=True)
     
+    def _self_ping(self):
+        """定期的に自身にpingを送信してスリープを防止"""
+        app_url = os.environ.get('RENDER_EXTERNAL_URL')
+        
+        if not app_url:
+            logger.debug("ℹ️ RENDER_EXTERNAL_URL not set, skipping self-ping")
+            return
+        
+        ping_url = f"{app_url.rstrip('/')}/ping"
+        
+        max_retries = 3
+        for attempt in range(max_retries):
+            try:
+                logger.info(f"📡 Self-ping attempt {attempt + 1}/{max_retries} to {ping_url}")
+                response = self.session.get(ping_url, timeout=10)
+                
+                if response.status_code == 200:
+                    logger.info(f"✅ Self-ping successful (Status: {response.status_code})")
+                    return
+                else:
+                    logger.warning(f"⚠️ Self-ping returned status {response.status_code}")
+                    
+            except requests.exceptions.Timeout:
+                logger.warning(f"⚠️ Self-ping timeout on attempt {attempt + 1}")
+            except requests.exceptions.RequestException as e:
+                logger.warning(f"⚠️ Self-ping failed on attempt {attempt + 1}: {e}")
+            except Exception as e:
+                logger.error(f"❌ Unexpected error in self-ping attempt {attempt + 1}: {e}")
+            
+            if attempt < max_retries - 1:
+                time.sleep(2)
+        
+        logger.error(f"❌ All {max_retries} self-ping attempts failed")
+    
     def start(self):
         """スケジューラーを開始"""
+        # 毎日23:58に価格更新
         self.scheduler.add_job(
             func=self.scheduled_update_all_prices,
             trigger=CronTrigger(hour=23, minute=58, timezone='Asia/Tokyo'),
@@ -74,9 +110,22 @@ class SchedulerManager:
             max_instances=1
         )
         
+        # ✅ 5分ごとにself-pingを送信（スリープ防止）
+        self.scheduler.add_job(
+            func=self._self_ping,
+            trigger=CronTrigger(minute='*/5', timezone='Asia/Tokyo'),
+            id='self_ping_job',
+            name='Self Ping every 5 minutes',
+            replace_existing=True,
+            coalesce=True,
+            max_instances=1
+        )
+        
         try:
             self.scheduler.start()
-            logger.info("✅ Scheduler started successfully. Daily updates scheduled for 23:58 JST")
+            logger.info("✅ Scheduler started successfully")
+            logger.info("📅 Daily price update scheduled for 23:58 JST")
+            logger.info("📡 Self-ping scheduled every 5 minutes")
         except Exception as e:
             logger.error(f"❌ Failed to start scheduler: {e}")
     
@@ -89,7 +138,7 @@ class SchedulerManager:
             logger.error(f"❌ Failed to shutdown scheduler: {e}")
 
 class KeepAliveManager:
-    """Keep-Alive を管理（10分ごとにpingを送信）"""
+    """Keep-Alive を管理（5分ごとにpingを送信）"""
     
     def __init__(self):
         self.session = requests.Session()
@@ -97,7 +146,7 @@ class KeepAliveManager:
         self.thread = None
     
     def keep_alive(self):
-        """アプリケーションがスリープしないようにping（10分ごと）"""
+        """アプリケーションがスリープしないようにping（5分ごと）"""
         app_url = os.environ.get('RENDER_EXTERNAL_URL')
         
         if not app_url:
@@ -111,27 +160,39 @@ class KeepAliveManager:
         
         logger.info(f"🚀 Keep-alive thread started")
         logger.info(f"📡 Ping URL: {ping_url}")
-        logger.info(f"⏱️ Interval: 10 minutes (600 seconds)")
+        logger.info(f"⏱️ Interval: 5 minutes (300 seconds)")
         
         while self.running:
-            try:
-                logger.info(f"📡 Sending keep-alive ping to {ping_url}...")
-                response = self.session.get(ping_url, timeout=10)
-                
-                if response.status_code == 200:
-                    logger.info(f"✅ Keep-alive ping successful (Status: {response.status_code})")
-                else:
-                    logger.warning(f"⚠️ Keep-alive ping returned status {response.status_code}")
-                    
-            except requests.exceptions.Timeout:
-                logger.warning(f"⚠️ Keep-alive ping timeout after 10 seconds")
-            except requests.exceptions.RequestException as e:
-                logger.warning(f"⚠️ Keep-alive ping failed: {e}")
-            except Exception as e:
-                logger.error(f"❌ Unexpected error in keep-alive: {e}", exc_info=True)
+            max_retries = 3
+            success = False
             
-            # 10分（600秒）待機
-            time.sleep(600)
+            for attempt in range(max_retries):
+                try:
+                    logger.info(f"📡 Keep-alive ping attempt {attempt + 1}/{max_retries}...")
+                    response = self.session.get(ping_url, timeout=10)
+                    
+                    if response.status_code == 200:
+                        logger.info(f"✅ Keep-alive ping successful (Status: {response.status_code})")
+                        success = True
+                        break
+                    else:
+                        logger.warning(f"⚠️ Keep-alive ping returned status {response.status_code}")
+                        
+                except requests.exceptions.Timeout:
+                    logger.warning(f"⚠️ Keep-alive ping timeout on attempt {attempt + 1}")
+                except requests.exceptions.RequestException as e:
+                    logger.warning(f"⚠️ Keep-alive ping failed on attempt {attempt + 1}: {e}")
+                except Exception as e:
+                    logger.error(f"❌ Unexpected error in keep-alive attempt {attempt + 1}: {e}", exc_info=True)
+                
+                if attempt < max_retries - 1:
+                    time.sleep(2)
+            
+            if not success:
+                logger.error(f"❌ All {max_retries} keep-alive attempts failed")
+            
+            # ✅ 5分（300秒）待機
+            time.sleep(300)
     
     def start_thread(self):
         """Keep-Alive スレッドを開始"""
@@ -147,7 +208,7 @@ class KeepAliveManager:
             self.running = True
             self.thread = threading.Thread(target=self.keep_alive, daemon=True, name="KeepAliveThread")
             self.thread.start()
-            logger.info("✅ Keep-alive thread started successfully")
+            logger.info("✅ Keep-alive thread started successfully (5-minute interval)")
         else:
             logger.info("ℹ️ Not running on Render, keep-alive thread will not start")
             logger.info("ℹ️ (This is normal for local development)")
