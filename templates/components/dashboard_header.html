@@ -42,19 +42,19 @@
 (function() {
     'use strict';
     
-    // ✅ ページ読み込み時にテーマを適用
     var savedTheme = localStorage.getItem('theme') || 'light';
     document.documentElement.setAttribute('data-theme', savedTheme);
     
     var sunIcon = document.getElementById('sun-icon');
     var moonIcon = document.getElementById('moon-icon');
     
-    if (savedTheme === 'dark') {
-        sunIcon.style.display = 'none';
-        moonIcon.style.display = 'block';
+    if (sunIcon && moonIcon) {
+        if (savedTheme === 'dark') {
+            sunIcon.style.display = 'none';
+            moonIcon.style.display = 'block';
+        }
     }
     
-    // ✅ ダークモード切り替え
     var themeToggle = document.getElementById('theme-toggle');
     
     if (themeToggle) {
@@ -62,13 +62,11 @@
             var currentTheme = document.documentElement.getAttribute('data-theme');
             
             if (currentTheme === 'dark') {
-                // ライトモードに切り替え
                 document.documentElement.setAttribute('data-theme', 'light');
                 localStorage.setItem('theme', 'light');
                 sunIcon.style.display = 'block';
                 moonIcon.style.display = 'none';
             } else {
-                // ダークモードに切り替え
                 document.documentElement.setAttribute('data-theme', 'dark');
                 localStorage.setItem('theme', 'dark');
                 sunIcon.style.display = 'none';
