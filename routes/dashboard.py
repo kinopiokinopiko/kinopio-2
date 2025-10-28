@@ -59,7 +59,7 @@ def get_dashboard_data(user_id):
             
             logger.info(f"📊 Assets by type: {[(k, len(v)) for k, v in assets_by_type.items() if v]}")
             
-            # ✅ 直近2日分の履歴データを取得（prev_*カラムなし）
+            # ✅ 直近2日分の履歴データを取得
             if db_manager.use_postgres:
                 c.execute('''SELECT record_date, 
                                    jp_stock_value, us_stock_value, cash_value, 
@@ -131,7 +131,7 @@ def get_dashboard_data(user_id):
                 
                 return total
             
-            # ✅ 前日比を計算する関数（yesterday_dataを使用）
+            # ✅ 前日比を計算する関数
             def calculate_day_change(current_value, asset_type):
                 """前日比を計算（直近2日のデータを比較）"""
                 if not yesterday_data:
@@ -153,7 +153,6 @@ def get_dashboard_data(user_id):
                     logger.debug(f"  No field mapping for {asset_type}")
                     return 0.0, 0.0
                 
-                # ✅ yesterday_dataから前日の値を取得
                 yesterday_value = safe_get(yesterday_data, field_name, 0.0)
                 day_change = current_value - yesterday_value
                 day_change_rate = (day_change / yesterday_value * 100) if yesterday_value > 0 else 0.0
@@ -249,7 +248,7 @@ def get_dashboard_data(user_id):
             logger.info(f"💰 Total Assets: ¥{total_assets:,.0f}")
             logger.info(f"📊 Total Profit: ¥{total_profit:,.0f} ({total_profit_rate:+.2f}%)")
             
-            # ✅ 総資産の前日比を計算（yesterday_dataのtotal_valueと比較）
+            # 総資産の前日比を計算
             total_day_change = 0.0
             total_day_change_rate = 0.0
             if yesterday_data:
@@ -335,6 +334,8 @@ def get_dashboard_data(user_id):
                 'us_day_change': us_stats['day_change'],
                 'us_day_change_rate': us_stats['day_change_rate'],
                 'cash_total': cash_stats['total'],
+                'cash_day_change': cash_stats['day_change'],  # ✅ 追加
+                'cash_day_change_rate': cash_stats['day_change_rate'],  # ✅ 追加
                 'gold_total': gold_stats['total'],
                 'gold_profit': gold_stats['profit'],
                 'gold_profit_rate': gold_stats['profit_rate'],
@@ -415,7 +416,8 @@ def dashboard():
                 'total_day_change': 0, 'total_day_change_rate': 0,
                 'jp_total': 0, 'jp_profit': 0, 'jp_profit_rate': 0, 'jp_day_change': 0, 'jp_day_change_rate': 0,
                 'us_total_jpy': 0, 'us_total_usd': 0, 'us_profit_jpy': 0, 'us_profit_rate': 0, 'us_day_change': 0, 'us_day_change_rate': 0,
-                'cash_total': 0, 'gold_total': 0, 'gold_profit': 0, 'gold_profit_rate': 0, 'gold_day_change': 0, 'gold_day_change_rate': 0,
+                'cash_total': 0, 'cash_day_change': 0, 'cash_day_change_rate': 0,  # ✅ 追加
+                'gold_total': 0, 'gold_profit': 0, 'gold_profit_rate': 0, 'gold_day_change': 0, 'gold_day_change_rate': 0,
                 'crypto_total': 0, 'crypto_profit': 0, 'crypto_profit_rate': 0, 'crypto_day_change': 0, 'crypto_day_change_rate': 0,
                 'investment_trust_total': 0, 'investment_trust_profit': 0, 'investment_trust_profit_rate': 0, 'investment_trust_day_change': 0, 'investment_trust_day_change_rate': 0,
                 'insurance_total': 0, 'insurance_profit': 0, 'insurance_profit_rate': 0, 'insurance_day_change': 0, 'insurance_day_change_rate': 0,
