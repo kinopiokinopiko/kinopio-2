@@ -11,7 +11,7 @@
     </form>
     <div class="header-title">ようこそ{{ user_name }}さん</div>
     
-    <!-- ダークモード切り替えボタン -->
+    <!-- ✅ ダークモード切り替えボタン -->
     <button class="icon-btn" id="theme-toggle" title="ダークモード切り替え">
         <svg id="sun-icon" class="theme-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
             <circle cx="12" cy="12" r="5"></circle>
@@ -42,36 +42,34 @@
 (function() {
     'use strict';
     
-    // ダークモード切り替え
-    const themeToggle = document.getElementById('theme-toggle');
-    const sunIcon = document.getElementById('sun-icon');
-    const moonIcon = document.getElementById('moon-icon');
-    const htmlElement = document.documentElement;
+    // ✅ ページ読み込み時にテーマを適用
+    var savedTheme = localStorage.getItem('theme') || 'light';
+    document.documentElement.setAttribute('data-theme', savedTheme);
     
-    // ローカルストレージからテーマを取得
-    const currentTheme = localStorage.getItem('theme') || 'light';
+    var sunIcon = document.getElementById('sun-icon');
+    var moonIcon = document.getElementById('moon-icon');
     
-    // 初期テーマを適用
-    if (currentTheme === 'dark') {
-        htmlElement.setAttribute('data-theme', 'dark');
+    if (savedTheme === 'dark') {
         sunIcon.style.display = 'none';
         moonIcon.style.display = 'block';
     }
     
-    // クリックイベント
+    // ✅ ダークモード切り替え
+    var themeToggle = document.getElementById('theme-toggle');
+    
     if (themeToggle) {
         themeToggle.addEventListener('click', function() {
-            const currentTheme = htmlElement.getAttribute('data-theme');
+            var currentTheme = document.documentElement.getAttribute('data-theme');
             
             if (currentTheme === 'dark') {
                 // ライトモードに切り替え
-                htmlElement.setAttribute('data-theme', 'light');
+                document.documentElement.setAttribute('data-theme', 'light');
                 localStorage.setItem('theme', 'light');
                 sunIcon.style.display = 'block';
                 moonIcon.style.display = 'none';
             } else {
                 // ダークモードに切り替え
-                htmlElement.setAttribute('data-theme', 'dark');
+                document.documentElement.setAttribute('data-theme', 'dark');
                 localStorage.setItem('theme', 'dark');
                 sunIcon.style.display = 'none';
                 moonIcon.style.display = 'block';
