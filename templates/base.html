@@ -23,7 +23,7 @@
             padding-bottom: 80px;
         }
         
-        /* ✅ 修正: アラートのスタイルを大きく表示 */
+        /* ✅ 修正: アラートのスタイルを大きく表示 + フェードアウトアニメーション */
         .alert { 
             padding: 24px 20px; 
             margin: 20px auto;
@@ -35,6 +35,13 @@
             text-align: center;
             animation: slideDown 0.3s ease-out;
             box-shadow: 0 4px 12px rgba(0,0,0,0.12);
+            transition: opacity 0.5s ease-out, transform 0.5s ease-out;
+        }
+        
+        /* ✅ フェードアウトクラス */
+        .alert.fade-out {
+            opacity: 0;
+            transform: translateY(-20px);
         }
         
         @keyframes slideDown {
@@ -75,8 +82,8 @@
     {% with messages = get_flashed_messages(with_categories=true) %}
         {% if messages %}
             {% for category, message in messages %}
-                <!-- ✅ 修正: alert のクラスを正しく指定 -->
-                <div class="alert {% if category == 'error' %}alert-error{% else %}alert-success{% endif %}">
+                <!-- ✅ 修正: alert のクラスを正しく指定 + ID追加 -->
+                <div class="alert {% if category == 'error' %}alert-error{% else %}alert-success{% endif %}" id="flash-message-{{ loop.index }}">
                     {{ message }}
                 </div>
             {% endfor %}
@@ -86,6 +93,26 @@
     <div class="container">
         {% block content %}{% endblock %}
     </div>
+    
+    <!-- ✅ フラッシュメッセージを自動で消すスクリプト -->
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            // 全てのアラートメッセージを取得
+            const alerts = document.querySelectorAll('.alert');
+            
+            alerts.forEach(function(alert) {
+                // 3秒後にフェードアウト開始
+                setTimeout(function() {
+                    alert.classList.add('fade-out');
+                    
+                    // フェードアウトアニメーション完了後に要素を削除
+                    setTimeout(function() {
+                        alert.remove();
+                    }, 500); // 0.5秒後（CSSのtransition時間と一致）
+                }, 3000); // 3秒後
+            });
+        });
+    </script>
     
     {% block scripts %}{% endblock %}
 </body>
