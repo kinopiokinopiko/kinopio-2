@@ -122,6 +122,8 @@ def add_asset():
         symbol = request.form.get('symbol', '').strip()
         quantity = float(request.form.get('quantity', 0))
         
+        logger.info(f"📝 Adding asset: type={asset_type}, symbol={symbol}, quantity={quantity}")
+        
         if not asset_type or not symbol or quantity <= 0:
             flash('入力内容を確認してください', 'error')
             return redirect(url_for('assets.manage_assets', asset_type=asset_type))
@@ -131,6 +133,8 @@ def add_asset():
             name = request.form.get('name', '').strip()
             avg_cost = float(request.form.get('avg_cost', 0))
             price = float(request.form.get('price', 0))
+            
+            logger.info(f"📝 Insurance details: name={name}, avg_cost={avg_cost}, price={price}")
             
             with db_manager.get_db() as conn:
                 c = conn.cursor()
@@ -150,28 +154,62 @@ def add_asset():
             flash('保険を追加しました', 'success')
             return redirect(url_for('assets.manage_assets', asset_type=asset_type))
         
-        # 現金の場合
+        # ✅ 修正: 現金の場合の処理を改善
         if asset_type == 'cash':
-            avg_cost = 0
-            price = 0
-        else:
-            avg_cost = float(request.form.get('avg_cost', 0))
+            avg_cost = 0.0
             price = 0.0
             name = symbol
             
-            # 価格を取得
-            try:
-                price_data = price_service.fetch_price({
-                    'id': 0,
-                    'asset_type': asset_type,
-                    'symbol': symbol
-                })
-                if price_data and isinstance(price_data, dict):
-                    price = float(price_data.get('price', 0.0))
-                    name = str(price_data.get('name', symbol))
-            except Exception as e:
-                logger.warning(f"⚠️ Could not fetch price for {symbol}: {e}")
+            logger.info(f"💰 Adding cash: symbol={symbol}, quantity={quantity}")
+            
+            # ✅ 現金は価格取得をスキップして直接DBに保存
+            with db_manager.get_db() as conn:
+                c = conn.cursor()
+                
+                if db_manager.use_postgres:
+                    c.execute('''INSERT INTO assets (user_id, asset_type, symbol, name, quantity, price, avg_cost)
+                                VALUES (%s, %s, %s, %s, %s, %s, %s)''',
+                             (user_id, asset_type, symbol, name, quantity, price, avg_cost))
+                else:
+                    c.execute('''INSERT INTO assets (user_id, asset_type, symbol, name, quantity, price, avg_cost)
+                                VALUES (?, ?, ?, ?, ?, ?, ?)''',
+                             (user_id, asset_type, symbol, name, quantity, price, avg_cost))
+                
+                conn.commit()
+            
+            logger.info(f"✅ Cash added: {symbol} (¥{quantity:,.0f}) for user {user_id}")
+            flash('現金を追加しました', 'success')
+            return redirect(url_for('assets.manage_assets', asset_type=asset_type))
         
+        # ✅ その他の資産の場合
+        avg_cost = float(request.form.get('avg_cost', 0))
+        
+        if avg_cost <= 0:
+            flash('平均取得単価を正しく入力してください', 'error')
+            return redirect(url_for('assets.manage_assets', asset_type=asset_type))
+        
+        price = 0.0
+        name = symbol
+        
+        # 価格を取得
+        try:
+            logger.info(f"🔍 Fetching price for {symbol} ({asset_type})")
+            price_data = price_service.fetch_price({
+                'id': 0,
+                'asset_type': asset_type,
+                'symbol': symbol
+            })
+            if price_data and isinstance(price_data, dict):
+                price = float(price_data.get('price', 0.0))
+                name = str(price_data.get('name', symbol))
+                logger.info(f"✅ Price fetched: {symbol} = ¥{price:,.2f}")
+            else:
+                logger.warning(f"⚠️ Could not fetch price for {symbol}, using 0")
+        except Exception as e:
+            logger.warning(f"⚠️ Error fetching price for {symbol}: {e}")
+            # 価格取得に失敗しても続行（価格は0のまま）
+        
+        # DBに保存
         with db_manager.get_db() as conn:
             c = conn.cursor()
             
@@ -188,6 +226,11 @@ def add_asset():
         
         logger.info(f"✅ Asset added: {symbol} ({asset_type}) for user {user_id}")
         flash('資産を追加しました', 'success')
+        return redirect(url_for('assets.manage_assets', asset_type=asset_type))
+    
+    except ValueError as ve:
+        logger.error(f"❌ Validation error adding asset: {ve}")
+        flash('入力内容を確認してください', 'error')
         return redirect(url_for('assets.manage_assets', asset_type=asset_type))
     
     except Exception as e:
