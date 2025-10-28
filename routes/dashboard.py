@@ -59,15 +59,12 @@ def get_dashboard_data(user_id):
             
             logger.info(f"📊 Assets by type: {[(k, len(v)) for k, v in assets_by_type.items() if v]}")
             
-            # ✅ 直近2日分の履歴データを取得
+            # ✅ 直近2日分の履歴データを取得（prev_*カラムなし）
             if db_manager.use_postgres:
                 c.execute('''SELECT record_date, 
                                    jp_stock_value, us_stock_value, cash_value, 
                                    gold_value, crypto_value, investment_trust_value, 
-                                   insurance_value, total_value,
-                                   prev_jp_stock_value, prev_us_stock_value, prev_cash_value,
-                                   prev_gold_value, prev_crypto_value, prev_investment_trust_value,
-                                   prev_insurance_value, prev_total_value
+                                   insurance_value, total_value
                             FROM asset_history 
                             WHERE user_id = %s 
                             ORDER BY record_date DESC 
@@ -76,10 +73,7 @@ def get_dashboard_data(user_id):
                 c.execute('''SELECT record_date, 
                                    jp_stock_value, us_stock_value, cash_value, 
                                    gold_value, crypto_value, investment_trust_value, 
-                                   insurance_value, total_value,
-                                   prev_jp_stock_value, prev_us_stock_value, prev_cash_value,
-                                   prev_gold_value, prev_crypto_value, prev_investment_trust_value,
-                                   prev_insurance_value, prev_total_value
+                                   insurance_value, total_value
                             FROM asset_history 
                             WHERE user_id = ? 
                             ORDER BY record_date DESC 
@@ -90,10 +84,15 @@ def get_dashboard_data(user_id):
             
             # 今日と昨日のデータを取得
             today_data = None
+            yesterday_data = None
             
-            if recent_records and len(recent_records) >= 1:
+            if recent_records and len(recent_records) >= 2:
                 today_data = recent_records[0]
-                logger.info(f"📊 Today: {today_data['record_date']}")
+                yesterday_data = recent_records[1]
+                logger.info(f"📊 Today: {today_data['record_date']}, Yesterday: {yesterday_data['record_date']}")
+            elif recent_records and len(recent_records) == 1:
+                today_data = recent_records[0]
+                logger.info(f"📊 Today: {today_data['record_date']}, No yesterday data")
             else:
                 logger.warning("⚠️ No history data found")
             
@@ -132,21 +131,21 @@ def get_dashboard_data(user_id):
                 
                 return total
             
-            # ✅ 前日比を計算する関数（修正版）
+            # ✅ 前日比を計算する関数（yesterday_dataを使用）
             def calculate_day_change(current_value, asset_type):
-                """前日比を計算（prev_xxx_valueカラムを使用）"""
-                if not today_data:
-                    logger.debug(f"  No today_data, returning 0 for {asset_type}")
+                """前日比を計算（直近2日のデータを比較）"""
+                if not yesterday_data:
+                    logger.debug(f"  No yesterday_data for {asset_type}, returning 0")
                     return 0.0, 0.0
                 
                 field_map = {
-                    'jp_stock': 'prev_jp_stock_value',
-                    'us_stock': 'prev_us_stock_value',
-                    'cash': 'prev_cash_value',
-                    'gold': 'prev_gold_value',
-                    'crypto': 'prev_crypto_value',
-                    'investment_trust': 'prev_investment_trust_value',
-                    'insurance': 'prev_insurance_value'
+                    'jp_stock': 'jp_stock_value',
+                    'us_stock': 'us_stock_value',
+                    'cash': 'cash_value',
+                    'gold': 'gold_value',
+                    'crypto': 'crypto_value',
+                    'investment_trust': 'investment_trust_value',
+                    'insurance': 'insurance_value'
                 }
                 
                 field_name = field_map.get(asset_type)
@@ -154,12 +153,12 @@ def get_dashboard_data(user_id):
                     logger.debug(f"  No field mapping for {asset_type}")
                     return 0.0, 0.0
                 
-                # ✅ 修正: prev_xxx_valueカラムから前日の値を取得
-                yesterday_value = safe_get(today_data, field_name, 0.0)
+                # ✅ yesterday_dataから前日の値を取得
+                yesterday_value = safe_get(yesterday_data, field_name, 0.0)
                 day_change = current_value - yesterday_value
                 day_change_rate = (day_change / yesterday_value * 100) if yesterday_value > 0 else 0.0
                 
-                logger.debug(f"  {asset_type}: current=¥{current_value:,.0f}, prev=¥{yesterday_value:,.0f}, change={day_change_rate:+.2f}%")
+                logger.debug(f"  {asset_type}: current=¥{current_value:,.0f}, yesterday=¥{yesterday_value:,.0f}, change=¥{day_change:,.0f} ({day_change_rate:+.2f}%)")
                 
                 return day_change, day_change_rate
             
@@ -250,16 +249,16 @@ def get_dashboard_data(user_id):
             logger.info(f"💰 Total Assets: ¥{total_assets:,.0f}")
             logger.info(f"📊 Total Profit: ¥{total_profit:,.0f} ({total_profit_rate:+.2f}%)")
             
-            # ✅ 修正: 総資産の前日比を計算（prev_total_valueを使用）
+            # ✅ 総資産の前日比を計算（yesterday_dataのtotal_valueと比較）
             total_day_change = 0.0
             total_day_change_rate = 0.0
-            if today_data:
-                yesterday_total = safe_get(today_data, 'prev_total_value', 0.0)
+            if yesterday_data:
+                yesterday_total = safe_get(yesterday_data, 'total_value', 0.0)
                 total_day_change = total_assets - yesterday_total
                 total_day_change_rate = (total_day_change / yesterday_total * 100) if yesterday_total > 0 else 0.0
-                logger.info(f"📈 Total Day Change: current=¥{total_assets:,.0f}, prev=¥{yesterday_total:,.0f}, change=¥{total_day_change:,.0f} ({total_day_change_rate:+.2f}%)")
+                logger.info(f"📈 Total Day Change: current=¥{total_assets:,.0f}, yesterday=¥{yesterday_total:,.0f}, change=¥{total_day_change:,.0f} ({total_day_change_rate:+.2f}%)")
             else:
-                logger.warning(f"⚠️ No today_data found, total day change = 0")
+                logger.warning(f"⚠️ No yesterday_data, total day change = 0")
             
             # チャート用データ
             chart_data = {
