@@ -23,7 +23,6 @@
             padding-bottom: 80px;
         }
         
-        /* ✅ 修正: アラートのスタイルを大きく表示 + フェードアウトアニメーション */
         .alert { 
             padding: 24px 20px; 
             margin: 20px auto;
@@ -33,12 +32,11 @@
             font-size: 18px;
             font-weight: 600;
             text-align: center;
-            animation: slideDown 0.3s ease-out;
             box-shadow: 0 4px 12px rgba(0,0,0,0.12);
             transition: opacity 0.5s ease-out, transform 0.5s ease-out;
+            animation: slideDown 0.3s ease-out;
         }
         
-        /* ✅ フェードアウトクラス */
         .alert.fade-out {
             opacity: 0;
             transform: translateY(-20px);
@@ -67,7 +65,6 @@
             border: 2px solid #f5c6cb; 
         }
 
-        /* タブレット・デスクトップ対応 */
         @media (min-width: 768px) {
             .alert {
                 max-width: 600px;
@@ -82,8 +79,7 @@
     {% with messages = get_flashed_messages(with_categories=true) %}
         {% if messages %}
             {% for category, message in messages %}
-                <!-- ✅ 修正: alert のクラスを正しく指定 + ID追加 -->
-                <div class="alert {% if category == 'error' %}alert-error{% else %}alert-success{% endif %}" id="flash-message-{{ loop.index }}">
+                <div class="alert {% if category == 'error' %}alert-error{% else %}alert-success{% endif %}">
                     {{ message }}
                 </div>
             {% endfor %}
@@ -94,26 +90,30 @@
         {% block content %}{% endblock %}
     </div>
     
-    <!-- ✅ フラッシュメッセージを自動で消すスクリプト -->
-    <script>
-        document.addEventListener('DOMContentLoaded', function() {
-            // 全てのアラートメッセージを取得
-            const alerts = document.querySelectorAll('.alert');
-            
-            alerts.forEach(function(alert) {
-                // 3秒後にフェードアウト開始
-                setTimeout(function() {
-                    alert.classList.add('fade-out');
-                    
-                    // フェードアウトアニメーション完了後に要素を削除
-                    setTimeout(function() {
-                        alert.remove();
-                    }, 500); // 0.5秒後（CSSのtransition時間と一致）
-                }, 3000); // 3秒後
-            });
-        });
-    </script>
-    
     {% block scripts %}{% endblock %}
+    
+    <script>
+    (function() {
+        'use strict';
+        
+        window.addEventListener('DOMContentLoaded', function() {
+            var alerts = document.querySelectorAll('.alert');
+            
+            if (alerts && alerts.length > 0) {
+                alerts.forEach(function(alert) {
+                    setTimeout(function() {
+                        alert.classList.add('fade-out');
+                        
+                        setTimeout(function() {
+                            if (alert && alert.parentNode) {
+                                alert.parentNode.removeChild(alert);
+                            }
+                        }, 500);
+                    }, 3000);
+                });
+            }
+        });
+    })();
+    </script>
 </body>
 </html>
