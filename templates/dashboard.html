@@ -1,744 +1,79 @@
 {% extends "base.html" %}
 
-{% block title %}資産ダッシュボード{% endblock %}
+{% block title %}ダッシュボード{% endblock %}
 
 {% block extra_styles %}
 <style>
-    * {
-        box-sizing: border-box;
-    }
-    
+    /* ✅ ダークモード対応のグローバルスタイル */
     body {
-        overflow-x: hidden;
+        background: var(--bg-primary);
+        color: var(--text-primary);
     }
     
     .container {
-        width: 100%;
-        max-width: 100vw;
-        overflow-x: hidden;
+        background: var(--bg-primary);
     }
     
-    .header-bar {
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-        margin-bottom: 24px;
-        padding: 12px 0;
-        gap: 12px;
+    /* 総資産カード */
+    .summary-card {
+        background: var(--card-bg);
+        border: 1px solid var(--border-color);
+        box-shadow: 0 2px 8px var(--shadow);
     }
     
-    .header-title {
-        font-size: 20px;
-        font-weight: 700;
-        color: #333;
-        flex: 1;
-        text-align: center;
-        letter-spacing: -0.5px;
+    .summary-title {
+        color: var(--text-secondary);
     }
     
-    .icon-btn {
-        background: none;
-        border: none;
-        cursor: pointer;
-        padding: 8px;
-        color: #333;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        transition: all 0.2s ease;
-    }
-
-    .icon-btn:hover {
-        opacity: 0.7;
+    .summary-value {
+        color: var(--text-primary);
     }
     
-    .refresh-icon {
-        width: 24px;
-        height: 24px;
-        transition: transform 0.3s ease;
-    }
-    
-    .icon-btn:active .refresh-icon {
-        animation: rotate 0.6s ease-in-out;
-    }
-    
-    @keyframes rotate {
-        from { transform: rotate(0deg); }
-        to { transform: rotate(360deg); }
-    }
-
-    .summary-grid {
-        display: grid;
-        grid-template-columns: 1fr;
-        gap: 24px;
-        margin-bottom: 24px;
-    }
-
-    @media (min-width: 992px) {
-        .summary-grid {
-            grid-template-columns: 1fr 1fr;
-            align-items: stretch;
-        }
-    }
-    
-    .total-card {
-        background: white;
-        border-radius: 16px;
-        padding: 32px 24px;
-        text-align: center;
-        box-shadow: 0 2px 8px rgba(0,0,0,0.08);
-        display: flex;
-        flex-direction: column;
-        justify-content: center;
-        border: 1px solid #f0f0f0;
-    }
-    
-    .total-label {
-        font-size: 14px;
-        color: #999;
-        margin-bottom: 12px;
-        font-weight: 700;
-        text-transform: uppercase;
-        letter-spacing: 0.5px;
-    }
-    
-    .total-amount {
-        font-size: 52px;
-        font-weight: 700;
-        color: #333;
-        margin-bottom: 32px;
-        letter-spacing: -1.5px;
-        line-height: 1.1;
-    }
-    
-    /* 損益と前日比のグリッド表示 */
-    .profit-day-grid {
-        display: grid;
-        grid-template-columns: 1fr 1fr;
-        gap: 24px;
-        margin-bottom: 24px;
-        padding: 0 16px;
-    }
-    
-    .profit-section,
-    .day-change-section {
-        display: flex;
-        flex-direction: column;
-        gap: 8px;
-    }
-    
-    .profit-header,
-    .day-change-header {
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        gap: 8px;
-        flex-wrap: wrap;
-    }
-    
-    .profit-label,
-    .day-change-label {
-        font-size: 15px;
-        color: #666;
-        font-weight: 700;
-    }
-    
-    .profit-badge,
-    .day-change-badge {
-        padding: 4px 12px;
-        border-radius: 16px;
-        font-size: 14px;
-        font-weight: 700;
-        color: white;
-    }
-    
-    .profit-badge.positive,
-    .day-change-badge.positive {
-        background: #dc3545;
-    }
-    
-    .profit-badge.negative,
-    .day-change-badge.negative {
-        background: #28a745;
-    }
-    
-    .profit-badge.zero,
-    .day-change-badge.zero {
-        background: #6c757d;
-        color: white;
-    }
-    
-    .profit-amount,
-    .day-change-amount {
-        font-size: 28px;
-        font-weight: 700;
-        text-align: center;
-        line-height: 1.2;
-    }
-    
-    .profit-amount.positive,
-    .day-change-amount.positive {
-        color: #dc3545;
-    }
-    
-    .profit-amount.negative,
-    .day-change-amount.negative {
-        color: #28a745;
-    }
-    
-    .profit-amount.zero,
-    .day-change-amount.zero {
-        color: #333;
-    }
-    
-    .update-time {
-        font-size: 13px;
-        color: #999;
-        margin-top: 16px;
-        font-weight: 600;
-    }
-    
-    /* 資産カードグリッド - 完全レスポンシブ */
-    .asset-grid {
-        display: grid;
-        grid-template-columns: repeat(2, 1fr);
-        gap: 10px;
-        margin-bottom: 24px;
-        width: 100%;
-    }
-    
+    /* 資産カード */
     .asset-card {
-        background: white;
-        border-radius: 14px;
-        padding: 12px;
-        cursor: pointer;
-        transition: all 0.2s ease;
-        text-decoration: none;
-        color: inherit;
-        display: flex;
-        flex-direction: column;
-        box-shadow: 0 2px 8px rgba(0,0,0,0.08);
-        border: 1px solid #f0f0f0;
-        min-height: auto;
-        width: 100%;
-        min-width: 0;
+        background: var(--card-bg);
+        border: 1px solid var(--border-color);
+        box-shadow: 0 2px 8px var(--shadow);
     }
     
     .asset-card:hover {
-        box-shadow: 0 4px 16px rgba(0,0,0,0.12);
-        transform: translateY(-2px);
+        box-shadow: 0 4px 16px var(--shadow);
     }
     
-    .asset-card:active {
-        transform: scale(0.98);
+    /* チャートコンテナ */
+    .chart-container {
+        background: var(--card-bg);
+        border: 1px solid var(--border-color);
+        box-shadow: 0 2px 8px var(--shadow);
     }
     
-    .card-header-new {
-        display: flex;
-        align-items: center;
-        gap: 8px;
-        margin-bottom: 12px;
+    .tab {
+        color: var(--text-secondary);
     }
     
-    .card-icon {
-        width: 48px;
-        height: 48px;
-        border-radius: 12px;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        font-size: 22px;
-        flex-shrink: 0;
-    }
-    
-    .card-info {
-        flex: 1;
-        min-width: 0;
-        overflow: hidden;
-    }
-    
-    .card-name-new {
-        font-size: 11px;
-        color: #999;
-        margin-bottom: 3px;
-        font-weight: 600;
-        white-space: nowrap;
-        overflow: hidden;
-        text-overflow: ellipsis;
-    }
-    
-    .card-amount-new {
-        font-size: 17px;
-        font-weight: 700;
-        color: #333;
-        letter-spacing: -0.5px;
-        white-space: nowrap;
-        overflow: hidden;
-        text-overflow: ellipsis;
-    }
-    
-    .card-details {
-        display: flex;
-        flex-direction: column;
-        gap: 3px;
-        padding-left: 56px;
-    }
-    
-    .detail-row {
-        display: flex;
-        align-items: center;
-        gap: 5px;
-    }
-    
-    .detail-label {
-        font-size: 10px;
-        color: #999;
-        font-weight: 600;
-        min-width: 36px;
-        flex-shrink: 0;
-    }
-    
-    .detail-badge {
-        padding: 2px 7px;
-        border-radius: 10px;
-        font-size: 10px;
-        font-weight: 700;
-        color: white;
-        white-space: nowrap;
-        flex-shrink: 0;
-    }
-    
-    .detail-badge.positive {
-        background: #dc3545;
-    }
-    
-    .detail-badge.negative {
-        background: #28a745;
-    }
-    
-    .detail-badge.zero {
-        background: #6c757d;
-        color: white;
-    }
-    
-    .detail-amount {
-        font-size: 12px;
-        font-weight: 700;
-        margin-bottom: 5px;
-        white-space: nowrap;
-        overflow: hidden;
-        text-overflow: ellipsis;
-    }
-    
-    .profit-plus { color: #dc3545; }
-    .profit-minus { color: #28a745; }
-    .zero { color: #333; }
-
-    .chart-container-with-tabs {
-        background: white;
-        border-radius: 16px;
-        padding: 20px;
-        box-shadow: 0 2px 8px rgba(0,0,0,0.08);
-        height: 450px;
-        margin-bottom: 24px;
-        display: flex;
-        flex-direction: column;
-        border: 1px solid #f0f0f0;
-    }
-
-    .tab-nav {
-        display: flex;
-        border-bottom: 2px solid #f0f0f0;
-        flex-shrink: 0;
-        margin-bottom: 12px;
-        overflow-x: auto;
-        white-space: nowrap;
-        -webkit-overflow-scrolling: touch;
-    }
-    
-    .tab-btn {
-        padding: 12px 16px;
-        cursor: pointer;
-        background: none;
-        border: none;
-        font-size: 14px;
-        color: #999;
-        border-bottom: 3px solid transparent;
-        transition: all 0.2s ease;
-        font-weight: 700;
-        letter-spacing: 0.3px;
-        flex-shrink: 0;
-        white-space: nowrap;
-    }
-    
-    .tab-btn.active {
-        color: #333;
+    .tab.active {
+        color: #007bff;
         border-bottom-color: #007bff;
     }
-
-    .tab-btn:hover:not(.active) {
-        color: #666;
-    }
     
-    .tab-content-wrapper {
-        flex-grow: 1;
-        position: relative;
-        padding-top: 12px;
-    }
-    
-    .tab-content {
-        display: none;
-        width: 100%;
-        height: 100%;
-        position: absolute;
-        top: 0;
-        left: 0;
-        padding-top: 12px;
-        box-sizing: border-box;
-        flex-direction: column;
-    }
-    
-    .tab-content.active {
-        display: flex;
-    }
-    
-    .legend-controls {
-        display: flex;
-        flex-wrap: wrap;
-        justify-content: center;
-        gap: 12px 16px;
-        margin-bottom: 12px;
-        padding: 0 8px;
-        flex-shrink: 0;
-        overflow-x: auto;
-        -webkit-overflow-scrolling: touch;
-    }
-    
-    .legend-controls .legend-item {
-        display: flex;
-        align-items: center;
-        font-size: 12px;
-        cursor: pointer;
-        user-select: none;
-        font-weight: 600;
-        white-space: nowrap;
-        flex-shrink: 0;
-    }
-    
-    .legend-controls input[type="checkbox"] {
-        display: none;
-    }
-    
-    .legend-color-box {
-        width: 12px;
-        height: 12px;
-        margin-right: 6px;
-        border-radius: 2px;
-        transition: opacity 0.2s ease;
-        flex-shrink: 0;
-    }
-
-    .chart-canvas-container {
-        flex-grow: 1;
-        position: relative;
-    }
-    
-    .chart-canvas-container canvas {
-        position: absolute;
-        top: 0;
-        left: 0;
-        width: 100%;
-        height: 100%;
-    }
-
-    /* 極小スマホ（320px~374px） */
-    @media (max-width: 374px) {
-        .container {
-            padding: 12px 8px;
+    /* タブレット・デスクトップ対応 */
+    @media (min-width: 768px) {
+        .summary-card,
+        .asset-card,
+        .chart-container {
+            box-shadow: 0 2px 12px var(--shadow);
         }
         
-        .asset-grid {
-            gap: 8px;
-        }
-        
-        .asset-card {
-            padding: 10px;
-        }
-        
-        .card-icon {
-            width: 42px;
-            height: 42px;
-            font-size: 20px;
-        }
-        
-        .card-name-new {
-            font-size: 10px;
-        }
-        
-        .card-amount-new {
-            font-size: 15px;
-        }
-        
-        .card-details {
-            padding-left: 50px;
-        }
-        
-        .detail-label {
-            font-size: 9px;
-            min-width: 32px;
-        }
-        
-        .detail-badge {
-            font-size: 9px;
-            padding: 2px 5px;
-        }
-        
-        .detail-amount {
-            font-size: 11px;
-        }
-        
-        .total-amount {
-            font-size: 38px;
-        }
-        
-        .profit-label,
-        .day-change-label {
-            font-size: 12px;
-        }
-        
-        .profit-badge,
-        .day-change-badge {
-            font-size: 11px;
-            padding: 3px 8px;
-        }
-        
-        .profit-amount,
-        .day-change-amount {
-            font-size: 20px;
-        }
-        
-        .profit-day-grid {
-            gap: 12px;
-            padding: 0 4px;
-        }
-    }
-
-    /* スマホ（375px~599px） */
-    @media (min-width: 375px) and (max-width: 599px) {
-        .container {
-            padding: 16px 12px;
-        }
-        
-        .asset-grid {
-            gap: 10px;
-        }
-        
-        .card-icon {
-            width: 48px;
-            height: 48px;
-            font-size: 22px;
-        }
-        
-        .card-name-new {
-            font-size: 11px;
-        }
-        
-        .card-amount-new {
-            font-size: 17px;
-        }
-        
-        .card-details {
-            padding-left: 56px;
-        }
-        
-        .detail-label {
-            font-size: 10px;
-            min-width: 36px;
-        }
-        
-        .detail-badge {
-            font-size: 10px;
-            padding: 2px 7px;
-        }
-        
-        .detail-amount {
-            font-size: 12px;
-        }
-        
-        .total-amount {
-            font-size: 44px;
-        }
-        
-        .profit-label,
-        .day-change-label {
-            font-size: 13px;
-        }
-        
-        .profit-badge,
-        .day-change-badge {
-            font-size: 12px;
-            padding: 3px 10px;
-        }
-        
-        .profit-amount,
-        .day-change-amount {
-            font-size: 24px;
-        }
-        
-        .profit-day-grid {
-            gap: 16px;
-            padding: 0 8px;
-        }
-    }
-
-    /* タブレット（600px~991px） */
-    @media (min-width: 600px) and (max-width: 991px) {
-        .asset-grid {
-            grid-template-columns: repeat(3, 1fr);
-            gap: 14px;
-        }
-        
-        .asset-card {
-            padding: 16px;
-        }
-        
-        .card-icon {
-            width: 60px;
-            height: 60px;
-            font-size: 28px;
-        }
-        
-        .card-name-new {
-            font-size: 13px;
-        }
-        
-        .card-amount-new {
-            font-size: 22px;
-        }
-        
-        .card-details {
-            padding-left: 72px;
-        }
-        
-        .detail-label {
-            font-size: 12px;
-        }
-        
-        .detail-badge {
-            font-size: 12px;
-            padding: 3px 10px;
-        }
-        
-        .detail-amount {
-            font-size: 14px;
-        }
-    }
-
-    /* デスクトップ（992px以上） */
-    @media (min-width: 992px) {
-        .container {
-            max-width: 1200px;
-            margin: 0 auto;
-        }
-        
-        .asset-grid {
-            grid-template-columns: repeat(4, 1fr);
-            gap: 16px;
-        }
-        
-        .asset-card {
-            padding: 20px;
-        }
-        
-        .card-header-new {
-            margin-bottom: 20px;
-            gap: 12px;
-        }
-        
-        .card-icon {
-            width: 70px;
-            height: 70px;
-            font-size: 32px;
-        }
-        
-        .card-name-new {
-            font-size: 14px;
-        }
-        
-        .card-amount-new {
-            font-size: 26px;
-        }
-        
-        .card-details {
-            padding-left: 82px;
-            gap: 4px;
-        }
-        
-        .detail-label {
-            font-size: 13px;
-        }
-        
-        .detail-badge {
-            font-size: 13px;
-            padding: 4px 12px;
-        }
-        
-        .detail-amount {
-            font-size: 16px;
-            margin-bottom: 8px;
-        }
-        
-        .tab-btn {
-            padding: 12px 20px;
-            font-size: 15px;
-        }
-        
-        .legend-controls .legend-item {
-            font-size: 13px;
-        }
-        
-        .total-amount {
-            font-size: 56px;
-        }
-        
-        .profit-label,
-        .day-change-label {
-            font-size: 16px;
-        }
-        
-        .profit-badge,
-        .day-change-badge {
-            font-size: 15px;
-            padding: 5px 14px;
-        }
-        
-        .profit-amount,
-        .day-change-amount {
-            font-size: 32px;
-        }
-        
-        .profit-day-grid {
-            gap: 32px;
-            padding: 0 24px;
+        .asset-card:hover {
+            box-shadow: 0 6px 20px var(--shadow);
         }
     }
 </style>
 {% endblock %}
 
 {% block content %}
-<!-- ヘッダー -->
 {% include 'components/dashboard_header.html' %}
-
-<!-- 総資産サマリー -->
 {% include 'components/dashboard_summary.html' %}
-
-<!-- チャート -->
 {% include 'components/dashboard_charts.html' %}
-
-<!-- 資産カード -->
 {% include 'components/dashboard_asset_cards.html' %}
-{% endblock %}
-
-{% block scripts %}
-{% include 'components/dashboard_scripts.html' %}
 {% endblock %}
