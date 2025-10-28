@@ -4,13 +4,13 @@
 
 {% block extra_styles %}
 <style>
-    /* ✅ ダークモード用CSS変数を追加（既存スタイルは維持） */
+    /* ✅ ダークモード用のCSS変数を追加 */
     :root {
         --bg-primary: #f5f5f5;
+        --card-bg: #ffffff;
         --text-primary: #333;
         --text-secondary: #666;
         --text-tertiary: #999;
-        --card-bg: #ffffff;
         --border-color: #e0e0e0;
         --shadow-sm: rgba(0,0,0,0.08);
         --shadow-md: rgba(0,0,0,0.12);
@@ -18,22 +18,22 @@
 
     [data-theme="dark"] {
         --bg-primary: #1a1a1a;
+        --card-bg: #2d2d2d;
         --text-primary: #e0e0e0;
         --text-secondary: #b0b0b0;
         --text-tertiary: #808080;
-        --card-bg: #2d2d2d;
         --border-color: #404040;
-        --shadow-sm: rgba(0,0,0,0.3);
-        --shadow-md: rgba(0,0,0,0.4);
+        --shadow-sm: rgba(0,0,0,0.4);
+        --shadow-md: rgba(0,0,0,0.5);
     }
 
-    /* 既存のスタイルにCSS変数を適用 */
+    /* ✅ 既存のスタイルをCSS変数に置き換え */
     body {
         background: var(--bg-primary);
         transition: background-color 0.3s ease;
     }
 
-    /* ヘッダー */
+    /* ヘッダーバー */
     .header-bar {
         display: flex;
         align-items: center;
@@ -43,7 +43,7 @@
         border-radius: 16px;
         margin-bottom: 20px;
         box-shadow: 0 2px 8px var(--shadow-sm);
-        transition: background-color 0.3s ease, box-shadow 0.3s ease;
+        transition: all 0.3s ease;
     }
 
     .header-title {
@@ -96,6 +96,15 @@
         to { transform: rotate(360deg); }
     }
 
+    /* ✅ テーマアイコンのアニメーション */
+    .theme-icon {
+        transition: transform 0.3s ease;
+    }
+
+    #theme-toggle:hover .theme-icon {
+        transform: rotate(20deg);
+    }
+
     /* 総資産サマリー */
     .summary-card {
         background: var(--card-bg);
@@ -104,7 +113,7 @@
         margin-bottom: 24px;
         text-align: center;
         box-shadow: 0 2px 8px var(--shadow-sm);
-        transition: background-color 0.3s ease, box-shadow 0.3s ease;
+        transition: all 0.3s ease;
     }
 
     .summary-title {
@@ -154,7 +163,7 @@
         padding: 20px;
         margin-bottom: 24px;
         box-shadow: 0 2px 8px var(--shadow-sm);
-        transition: background-color 0.3s ease, box-shadow 0.3s ease;
+        transition: all 0.3s ease;
     }
 
     .tabs {
@@ -257,7 +266,6 @@
         transition: color 0.3s ease;
     }
 
-    /* ✅ 100万円以上のフォントサイズ調整 */
     .card-amount-new.amount-large {
         font-size: 17px;
         letter-spacing: -0.8px;
@@ -312,7 +320,6 @@
     .detail-amount {
         font-size: 16px;
         font-weight: 700;
-        color: var(--text-primary);
         transition: color 0.3s ease;
     }
 
@@ -350,15 +357,6 @@
         .asset-grid {
             grid-template-columns: repeat(3, 1fr);
         }
-    }
-
-    /* ✅ テーマアイコンのアニメーション */
-    .theme-icon {
-        transition: transform 0.3s ease;
-    }
-
-    #theme-toggle:hover .theme-icon {
-        transform: rotate(20deg);
     }
 </style>
 {% endblock %}
