@@ -13,6 +13,8 @@
             --text-primary: #333;
             --text-secondary: #666;
             --text-tertiary: #999;
+            --border-color: #f0f0f0;
+            --shadow: rgba(0,0,0,0.08);
         }
 
         [data-theme="dark"] {
@@ -21,6 +23,8 @@
             --text-primary: #e0e0e0;
             --text-secondary: #b0b0b0;
             --text-tertiary: #808080;
+            --border-color: #404040;
+            --shadow: rgba(0,0,0,0.3);
         }
         
         * {
@@ -30,9 +34,9 @@
             font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Hiragino Sans", sans-serif;
             margin: 0; 
             padding: 0; 
-            background: var(--bg-primary);  /* ✅ CSS変数を使用 */
-            color: var(--text-primary);      /* ✅ CSS変数を使用 */
-            transition: background-color 0.3s ease, color 0.3s ease;  /* ✅ スムーズな切り替え */
+            background: var(--bg-primary);
+            color: var(--text-primary);
+            transition: background-color 0.3s ease, color 0.3s ease;
         }
         .container { 
             max-width: 100%; 
@@ -50,9 +54,9 @@
             font-size: 18px;
             font-weight: 600;
             text-align: center;
+            animation: slideDown 0.3s ease-out;
             box-shadow: 0 4px 12px rgba(0,0,0,0.12);
             transition: opacity 0.5s ease-out, transform 0.5s ease-out;
-            animation: slideDown 0.3s ease-out;
         }
         
         .alert.fade-out {
@@ -114,6 +118,7 @@
     (function() {
         'use strict';
         
+        // フラッシュメッセージの自動消去
         window.addEventListener('DOMContentLoaded', function() {
             var alerts = document.querySelectorAll('.alert');
             
