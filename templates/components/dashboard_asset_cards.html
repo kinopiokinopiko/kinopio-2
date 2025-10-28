@@ -252,19 +252,21 @@
 <style>
 /* ✅ 金額の桁数に応じたフォントサイズ調整 */
 .card-amount-new {
-    font-size: 24px;
+    font-size: 20px;  /* ✅ デフォルトを20pxに戻す */
     font-weight: 700;
     color: #333;
-    letter-spacing: -1px;
+    letter-spacing: -0.5px;
 }
 
 /* 100万円以上（7桁以上）の場合 */
 .card-amount-new.amount-large {
-    font-size: 20px;
+    font-size: 17px;  /* ✅ より小さく（20px → 17px） */
+    letter-spacing: -0.8px;
 }
 
 /* 1000万円以上（8桁以上）の場合 */
 .card-amount-new.amount-xlarge {
-    font-size: 18px;
+    font-size: 15px;  /* ✅ さらに小さく（20px → 15px） */
+    letter-spacing: -1px;
 }
 </style>
