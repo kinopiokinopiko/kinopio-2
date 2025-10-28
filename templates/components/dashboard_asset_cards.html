@@ -79,6 +79,19 @@
                 <div class="card-amount-new">¥{{ "{:,.0f}".format(cash_total) }}</div>
             </div>
         </div>
+        <!-- ✅ 現金にも前日比を追加 -->
+        <div class="card-details">
+            <!-- 前日比 -->
+            <div class="detail-row">
+                <span class="detail-label">前日比</span>
+                <span class="detail-badge {% if cash_day_change > 0 %}positive{% elif cash_day_change < 0 %}negative{% else %}zero{% endif %}">
+                    {% if cash_day_change > 0 %}+{% elif cash_day_change < 0 %}-{% endif %}{{ "{:.1f}".format(cash_day_change_rate|abs) }}%
+                </span>
+            </div>
+            <div class="detail-amount {% if cash_day_change > 0 %}profit-plus{% elif cash_day_change < 0 %}profit-minus{% else %}zero{% endif %}">
+                {% if cash_day_change > 0 %}+{% elif cash_day_change < 0 %}-{% endif %}¥{{ "{:,.0f}".format(cash_day_change|abs) }}
+            </div>
+        </div>
     </a>
     
     <!-- 金カード -->
