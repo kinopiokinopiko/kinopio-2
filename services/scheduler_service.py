@@ -25,9 +25,10 @@ class SchedulerManager:
     def scheduled_update_all_prices(self):
         """スケジュール実行: 全ユーザーの資産価格を更新"""
         try:
-            logger.info("=" * 70)
-            logger.info("🔄 Starting scheduled price update for all users")
-            logger.info("=" * 70)
+            logger.info("=" * 80)
+            logger.info("🔄 SCHEDULED TASK STARTED: Price update for all users")
+            logger.info(f"⏰ Timestamp: {time.strftime('%Y-%m-%d %H:%M:%S JST')}")
+            logger.info("=" * 80)
             
             with db_manager.get_db() as conn:
                 c = conn.cursor()
@@ -35,33 +36,61 @@ class SchedulerManager:
                 users = c.fetchall()
             
             if not users:
-                logger.warning("No users found in database")
+                logger.warning("⚠️ No users found in database")
                 return
             
-            logger.info(f"Found {len(users)} users to update")
+            logger.info(f"👥 Found {len(users)} users to process")
             
             total_updated = 0
+            success_count = 0
+            failed_users = []
+            
             for user in users:
                 user_id = user['id']
                 username = user['username']
                 
-                logger.info(f"👤 Processing user: {username} (ID: {user_id})")
-                
-                updated_count = asset_service.update_user_prices(user_id)
-                total_updated += updated_count
-                
                 try:
+                    logger.info(f"")
+                    logger.info(f"👤 Processing user: {username} (ID: {user_id})")
+                    logger.info(f"─" * 60)
+                    
+                    # ステップ1: 価格更新
+                    logger.info(f"📊 Step 1/2: Updating prices for user {username}...")
+                    updated_count = asset_service.update_user_prices(user_id)
+                    total_updated += updated_count
+                    logger.info(f"✅ Step 1 completed: {updated_count} assets updated")
+                    
+                    # ステップ2: スナップショット記録
+                    logger.info(f"📸 Step 2/2: Recording snapshot for user {username}...")
                     asset_service.record_asset_snapshot(user_id)
-                    logger.info(f"📸 Asset snapshot recorded for user {username}")
-                except Exception as e:
-                    logger.error(f"Failed to record snapshot for user {username}: {e}")
+                    logger.info(f"✅ Step 2 completed: Snapshot recorded")
+                    
+                    success_count += 1
+                    logger.info(f"✅ User {username} processed successfully")
+                    
+                except Exception as user_error:
+                    failed_users.append((username, str(user_error)))
+                    logger.error(f"❌ Failed to process user {username}: {user_error}", exc_info=True)
+                    continue
             
-            logger.info("=" * 70)
-            logger.info(f"✅ Scheduled update completed: {total_updated} assets updated across {len(users)} users")
-            logger.info("=" * 70)
+            # サマリー出力
+            logger.info("=" * 80)
+            logger.info("📊 SCHEDULED TASK SUMMARY")
+            logger.info(f"  ✅ Successful users: {success_count}/{len(users)}")
+            logger.info(f"  📦 Total assets updated: {total_updated}")
+            
+            if failed_users:
+                logger.warning(f"  ⚠️ Failed users: {len(failed_users)}")
+                for username, error in failed_users:
+                    logger.warning(f"    - {username}: {error}")
+            
+            logger.info(f"⏰ Completed at: {time.strftime('%Y-%m-%d %H:%M:%S JST')}")
+            logger.info("=" * 80)
         
         except Exception as e:
-            logger.error(f"❌ Critical error in scheduled_update_all_prices: {e}", exc_info=True)
+            logger.error("=" * 80)
+            logger.error(f"❌ CRITICAL ERROR in scheduled_update_all_prices: {e}", exc_info=True)
+            logger.error("=" * 80)
     
     def _self_ping(self):
         """定期的に自身にpingを送信してスリープを防止"""
@@ -107,7 +136,8 @@ class SchedulerManager:
             name='Daily Price Update at 23:58 JST',
             replace_existing=True,
             coalesce=True,
-            max_instances=1
+            max_instances=1,
+            misfire_grace_time=300  # ✅ 5分以内の遅延を許容
         )
         
         # ✅ 5分ごとにself-pingを送信（スリープ防止）
@@ -123,11 +153,14 @@ class SchedulerManager:
         
         try:
             self.scheduler.start()
-            logger.info("✅ Scheduler started successfully")
+            logger.info("=" * 80)
+            logger.info("✅ SCHEDULER STARTED SUCCESSFULLY")
             logger.info("📅 Daily price update scheduled for 23:58 JST")
             logger.info("📡 Self-ping scheduled every 5 minutes")
+            logger.info(f"🔧 Database: {'PostgreSQL' if self.use_postgres else 'SQLite'}")
+            logger.info("=" * 80)
         except Exception as e:
-            logger.error(f"❌ Failed to start scheduler: {e}")
+            logger.error(f"❌ Failed to start scheduler: {e}", exc_info=True)
     
     def shutdown(self):
         """スケジューラーをシャットダウン"""
