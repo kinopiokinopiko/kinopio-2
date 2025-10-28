@@ -4,56 +4,159 @@
 
 {% block extra_styles %}
 <style>
-    /* ✅ ダークモード対応のグローバルスタイル */
+    /* ✅ CSS変数を使用したダークモード対応 */
+    :root {
+        --bg-primary: #f5f5f5;
+        --bg-secondary: #ffffff;
+        --text-primary: #333;
+        --text-secondary: #666;
+        --text-tertiary: #999;
+        --border-color: #e0e0e0;
+        --shadow: rgba(0,0,0,0.08);
+        --card-bg: #ffffff;
+        --header-bg: #ffffff;
+    }
+
+    [data-theme="dark"] {
+        --bg-primary: #1a1a1a;
+        --bg-secondary: #2d2d2d;
+        --text-primary: #e0e0e0;
+        --text-secondary: #b0b0b0;
+        --text-tertiary: #808080;
+        --border-color: #404040;
+        --shadow: rgba(0,0,0,0.3);
+        --card-bg: #2d2d2d;
+        --header-bg: #2d2d2d;
+    }
+    
     body {
-        background: var(--bg-primary);
-        color: var(--text-primary);
+        background: var(--bg-primary) !important;
+        color: var(--text-primary) !important;
+        transition: background-color 0.3s ease, color 0.3s ease;
     }
     
     .container {
         background: var(--bg-primary);
     }
     
+    /* ヘッダーバー */
+    .header-bar {
+        background: var(--header-bg);
+        border: 1px solid var(--border-color);
+        transition: background-color 0.3s ease, border-color 0.3s ease;
+    }
+    
+    .header-title {
+        color: var(--text-primary);
+    }
+    
+    .icon-btn svg {
+        stroke: var(--text-primary);
+    }
+    
     /* 総資産カード */
     .summary-card {
-        background: var(--card-bg);
+        background: var(--card-bg) !important;
         border: 1px solid var(--border-color);
         box-shadow: 0 2px 8px var(--shadow);
+        transition: background-color 0.3s ease, border-color 0.3s ease;
     }
     
     .summary-title {
-        color: var(--text-secondary);
+        color: var(--text-secondary) !important;
     }
     
     .summary-value {
-        color: var(--text-primary);
+        color: var(--text-primary) !important;
     }
     
     /* 資産カード */
     .asset-card {
-        background: var(--card-bg);
+        background: var(--card-bg) !important;
         border: 1px solid var(--border-color);
         box-shadow: 0 2px 8px var(--shadow);
+        transition: background-color 0.3s ease, border-color 0.3s ease;
     }
     
     .asset-card:hover {
         box-shadow: 0 4px 16px var(--shadow);
     }
     
+    .card-name-new {
+        color: var(--text-secondary) !important;
+    }
+    
+    .card-amount-new {
+        color: var(--text-primary) !important;
+    }
+    
+    .detail-label {
+        color: var(--text-tertiary) !important;
+    }
+    
+    .detail-value {
+        color: var(--text-primary) !important;
+    }
+    
+    .detail-amount {
+        color: var(--text-primary) !important;
+    }
+    
     /* チャートコンテナ */
     .chart-container {
-        background: var(--card-bg);
+        background: var(--card-bg) !important;
         border: 1px solid var(--border-color);
         box-shadow: 0 2px 8px var(--shadow);
+        transition: background-color 0.3s ease, border-color 0.3s ease;
+    }
+    
+    .tabs {
+        border-bottom: 2px solid var(--border-color);
     }
     
     .tab {
         color: var(--text-secondary);
+        border-bottom: 3px solid transparent;
+        transition: color 0.3s ease, border-color 0.3s ease;
     }
     
     .tab.active {
         color: #007bff;
         border-bottom-color: #007bff;
+    }
+    
+    /* チャートのラベル */
+    .chart-legend {
+        color: var(--text-primary) !important;
+    }
+    
+    /* 損益バッジ - ライト/ダークで色を維持 */
+    .profit-plus {
+        color: #dc3545 !important;
+    }
+    
+    .profit-minus {
+        color: #28a745 !important;
+    }
+    
+    .detail-badge.positive {
+        background: rgba(220, 53, 69, 0.1);
+        color: #dc3545;
+    }
+    
+    .detail-badge.negative {
+        background: rgba(40, 167, 69, 0.1);
+        color: #28a745;
+    }
+    
+    .detail-badge.zero {
+        background: rgba(108, 117, 125, 0.1);
+        color: var(--text-tertiary);
+    }
+    
+    /* カードアイコン背景 - ダークモードでも維持 */
+    .card-icon {
+        opacity: 1 !important;
     }
     
     /* タブレット・デスクトップ対応 */
