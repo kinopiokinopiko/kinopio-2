@@ -56,6 +56,25 @@
         border-bottom-color: var(--border-color);
     }
     
+    /* ✅ ダークモードで黒文字(#333)を白に変更 */
+    [data-theme="dark"] .profit-amount.zero,
+    [data-theme="dark"] .day-change-amount.zero,
+    [data-theme="dark"] .zero {
+        color: var(--text-primary) !important;
+    }
+    
+    /* ✅ detail-badgeのゼロ表示もダークモードで明るく */
+    [data-theme="dark"] .detail-badge.zero {
+        background: #808080;
+        color: #e0e0e0;
+    }
+    
+    [data-theme="dark"] .profit-badge.zero,
+    [data-theme="dark"] .day-change-badge.zero {
+        background: #808080;
+        color: #e0e0e0;
+    }
+    
     /* ✅ テーマアイコンのスタイル */
     .theme-icon {
         transition: transform 0.3s ease;
@@ -323,7 +342,6 @@
         text-overflow: ellipsis;
     }
     
-    /* ✅ 100万円以上のフォントサイズ調整 */
     .card-amount-new.amount-large {
         font-size: 17px;
         letter-spacing: -0.8px;
