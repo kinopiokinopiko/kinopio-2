@@ -58,23 +58,15 @@ def get_dashboard_data(user_id):
             
             logger.info(f"📊 Assets by type: {[(k, len(v)) for k, v in assets_by_type.items() if v]}")
             
-            # ✅ 今日の日付を取得（JST）
+            # ✅ 昨日の日付を取得（JST）
             jst = timezone(timedelta(hours=9))
             today = datetime.now(jst).date()
             yesterday = today - timedelta(days=1)
             
             logger.info(f"📅 Today: {today}, Yesterday: {yesterday}")
             
-            # ✅ 今日と昨日のスナップショットを取得
+            # ✅ 昨日のスナップショットを取得
             if db_manager.use_postgres:
-                c.execute('''SELECT record_date, 
-                                   jp_stock_value, us_stock_value, cash_value, 
-                                   gold_value, crypto_value, investment_trust_value, 
-                                   insurance_value, total_value
-                            FROM asset_history 
-                            WHERE user_id = %s AND record_date = %s''', (user_id, today))
-                today_snapshot = c.fetchone()
-                
                 c.execute('''SELECT record_date, 
                                    jp_stock_value, us_stock_value, cash_value, 
                                    gold_value, crypto_value, investment_trust_value, 
@@ -88,24 +80,12 @@ def get_dashboard_data(user_id):
                                    gold_value, crypto_value, investment_trust_value, 
                                    insurance_value, total_value
                             FROM asset_history 
-                            WHERE user_id = ? AND record_date = ?''', (user_id, today))
-                today_snapshot = c.fetchone()
-                
-                c.execute('''SELECT record_date, 
-                                   jp_stock_value, us_stock_value, cash_value, 
-                                   gold_value, crypto_value, investment_trust_value, 
-                                   insurance_value, total_value
-                            FROM asset_history 
                             WHERE user_id = ? AND record_date = ?''', (user_id, yesterday))
                 yesterday_snapshot = c.fetchone()
             
-            if today_snapshot:
-                logger.info(f"✅ Today's snapshot found: {today_snapshot['record_date']}")
-            else:
-                logger.warning(f"⚠️ No snapshot for today ({today})")
-            
             if yesterday_snapshot:
                 logger.info(f"✅ Yesterday's snapshot found: {yesterday_snapshot['record_date']}")
+                logger.info(f"   Total: ¥{safe_get(yesterday_snapshot, 'total_value', 0):,.0f}")
             else:
                 logger.warning(f"⚠️ No snapshot for yesterday ({yesterday})")
             
@@ -144,11 +124,11 @@ def get_dashboard_data(user_id):
                 
                 return total
             
-            # ✅ 前日比を計算する関数（スナップショット同士を比較）
-            def calculate_day_change_from_snapshots(asset_type):
-                """前日比を計算（今日と昨日のスナップショットを比較）"""
-                if not today_snapshot or not yesterday_snapshot:
-                    logger.debug(f"  No snapshot data for {asset_type}, returning 0")
+            # ✅ 前日比を計算する関数（リアルタイム - 昨日のスナップショット）
+            def calculate_day_change(current_value, asset_type):
+                """前日比を計算（リアルタイムの現在値 - 昨日のスナップショット）"""
+                if not yesterday_snapshot:
+                    logger.debug(f"  No yesterday_snapshot for {asset_type}, returning 0")
                     return 0.0, 0.0
                 
                 field_map = {
@@ -166,15 +146,13 @@ def get_dashboard_data(user_id):
                     logger.debug(f"  No field mapping for {asset_type}")
                     return 0.0, 0.0
                 
-                # ✅ 今日のスナップショット値
-                today_value = safe_get(today_snapshot, field_name, 0.0)
                 # ✅ 昨日のスナップショット値
                 yesterday_value = safe_get(yesterday_snapshot, field_name, 0.0)
-                
-                day_change = today_value - yesterday_value
+                # ✅ 前日比 = リアルタイムの現在値 - 昨日のスナップショット
+                day_change = current_value - yesterday_value
                 day_change_rate = (day_change / yesterday_value * 100) if yesterday_value > 0 else 0.0
                 
-                logger.info(f"  📈 {asset_type}: today=¥{today_value:,.0f}, yesterday=¥{yesterday_value:,.0f}, change=¥{day_change:,.0f} ({day_change_rate:+.2f}%)")
+                logger.info(f"  📈 {asset_type}: current(realtime)=¥{current_value:,.0f}, yesterday(snapshot)=¥{yesterday_value:,.0f}, change=¥{day_change:,.0f} ({day_change_rate:+.2f}%)")
                 
                 return day_change, day_change_rate
             
@@ -216,8 +194,8 @@ def get_dashboard_data(user_id):
                     profit = total_value - cost_value
                     profit_rate = (profit / cost_value * 100) if cost_value > 0 else 0.0
                     
-                    # ✅ 前日比を計算（スナップショット同士を比較）
-                    day_change, day_change_rate = calculate_day_change_from_snapshots(asset_type)
+                    # ✅ 前日比を計算（リアルタイム - 昨日のスナップショット）
+                    day_change, day_change_rate = calculate_day_change(total_value, asset_type)
                     
                     return {
                         'total': total_value,
@@ -265,17 +243,16 @@ def get_dashboard_data(user_id):
             logger.info(f"💰 Total Assets: ¥{total_assets:,.0f}")
             logger.info(f"📊 Total Profit: ¥{total_profit:,.0f} ({total_profit_rate:+.2f}%)")
             
-            # ✅ 総資産の前日比を計算（スナップショット同士を比較）
+            # ✅ 総資産の前日比を計算（リアルタイム - 昨日のスナップショット）
             total_day_change = 0.0
             total_day_change_rate = 0.0
-            if today_snapshot and yesterday_snapshot:
-                today_total = safe_get(today_snapshot, 'total_value', 0.0)
+            if yesterday_snapshot:
                 yesterday_total = safe_get(yesterday_snapshot, 'total_value', 0.0)
-                total_day_change = today_total - yesterday_total
+                total_day_change = total_assets - yesterday_total
                 total_day_change_rate = (total_day_change / yesterday_total * 100) if yesterday_total > 0 else 0.0
-                logger.info(f"📈 Total Day Change: today=¥{today_total:,.0f}, yesterday=¥{yesterday_total:,.0f}, change=¥{total_day_change:,.0f} ({total_day_change_rate:+.2f}%)")
+                logger.info(f"📈 Total Day Change: current(realtime)=¥{total_assets:,.0f}, yesterday(snapshot)=¥{yesterday_total:,.0f}, change=¥{total_day_change:,.0f} ({total_day_change_rate:+.2f}%)")
             else:
-                logger.warning(f"⚠️ Missing snapshot data, total day change = 0")
+                logger.warning(f"⚠️ No yesterday_snapshot, total day change = 0")
             
             # チャート用データ
             chart_data = {
