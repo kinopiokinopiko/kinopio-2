@@ -3,10 +3,11 @@
     <!-- 日本株カード -->
     <a href="{{ url_for('assets.manage_assets', asset_type='jp_stock') }}" class="asset-card">
         <div class="card-header-new">
-            <div class="card-icon" style="background: #e8f5e9;">🇯🇵</div>
+            <div class="card-icon" style="background: #e8f5e9;">
+                <span class="icon-flag">🇯🇵</span>
+            </div>
             <div class="card-info">
                 <div class="card-name-new">日本株</div>
-                <!-- ✅ 金額の桁数に応じてクラスを追加 -->
                 <div class="card-amount-new {% if jp_total >= 1000000 %}amount-large{% elif jp_total >= 10000000 %}amount-xlarge{% endif %}">
                     ¥{{ "{:,.0f}".format(jp_total) }}
                 </div>
@@ -41,7 +42,9 @@
     <!-- 米国株カード -->
     <a href="{{ url_for('assets.manage_assets', asset_type='us_stock') }}" class="asset-card">
         <div class="card-header-new">
-            <div class="card-icon" style="background: #e3f2fd;">🇺🇸</div>
+            <div class="card-icon" style="background: #e3f2fd;">
+                <span class="icon-flag">🇺🇸</span>
+            </div>
             <div class="card-info">
                 <div class="card-name-new">米国株</div>
                 <div class="card-amount-new {% if us_total_jpy >= 1000000 %}amount-large{% elif us_total_jpy >= 10000000 %}amount-xlarge{% endif %}">
@@ -78,7 +81,9 @@
     <!-- 現金カード -->
     <a href="{{ url_for('assets.manage_assets', asset_type='cash') }}" class="asset-card">
         <div class="card-header-new">
-            <div class="card-icon" style="background: #fff3e0;">💰</div>
+            <div class="card-icon" style="background: #fff3e0;">
+                <span class="icon-emoji">💰</span>
+            </div>
             <div class="card-info">
                 <div class="card-name-new">現金</div>
                 <div class="card-amount-new {% if cash_total >= 1000000 %}amount-large{% elif cash_total >= 10000000 %}amount-xlarge{% endif %}">
@@ -103,7 +108,9 @@
     <!-- 金カード -->
     <a href="{{ url_for('assets.manage_assets', asset_type='gold') }}" class="asset-card">
         <div class="card-header-new">
-            <div class="card-icon" style="background: #fffde7;">🥇</div>
+            <div class="card-icon" style="background: #fffde7;">
+                <span class="icon-emoji">🥇</span>
+            </div>
             <div class="card-info">
                 <div class="card-name-new">金(Gold)</div>
                 <div class="card-amount-new {% if gold_total >= 1000000 %}amount-large{% elif gold_total >= 10000000 %}amount-xlarge{% endif %}">
@@ -140,7 +147,9 @@
     <!-- 暗号資産カード -->
     <a href="{{ url_for('assets.manage_assets', asset_type='crypto') }}" class="asset-card">
         <div class="card-header-new">
-            <div class="card-icon" style="background: #f3e5f5;">₿</div>
+            <div class="card-icon" style="background: #f3e5f5;">
+                <span class="icon-bitcoin">₿</span>
+            </div>
             <div class="card-info">
                 <div class="card-name-new">暗号資産</div>
                 <div class="card-amount-new {% if crypto_total >= 1000000 %}amount-large{% elif crypto_total >= 10000000 %}amount-xlarge{% endif %}">
@@ -177,7 +186,9 @@
     <!-- 投資信託カード -->
     <a href="{{ url_for('assets.manage_assets', asset_type='investment_trust') }}" class="asset-card">
         <div class="card-header-new">
-            <div class="card-icon" style="background: #e0f2f1;">📈</div>
+            <div class="card-icon" style="background: #e0f2f1;">
+                <span class="icon-emoji">📈</span>
+            </div>
             <div class="card-info">
                 <div class="card-name-new">投資信託</div>
                 <div class="card-amount-new {% if investment_trust_total >= 1000000 %}amount-large{% elif investment_trust_total >= 10000000 %}amount-xlarge{% endif %}">
@@ -214,7 +225,9 @@
     <!-- 保険カード -->
     <a href="{{ url_for('assets.manage_assets', asset_type='insurance') }}" class="asset-card">
         <div class="card-header-new">
-            <div class="card-icon" style="background: #e0f7fa;">🛡️</div>
+            <div class="card-icon" style="background: #e0f7fa;">
+                <span class="icon-emoji">🛡️</span>
+            </div>
             <div class="card-info">
                 <div class="card-name-new">保険</div>
                 <div class="card-amount-new {% if insurance_total >= 1000000 %}amount-large{% elif insurance_total >= 10000000 %}amount-xlarge{% endif %}">
@@ -250,22 +263,71 @@
 </div>
 
 <style>
-/* ✅ 金額の桁数に応じたフォントサイズ調整 */
+/* ✅ アイコン表示の改善 */
+.card-icon {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+/* 国旗のスタイル */
+.icon-flag {
+    font-size: 32px;
+    line-height: 1;
+    font-family: "Apple Color Emoji", "Segoe UI Emoji", "Noto Color Emoji", "Android Emoji", sans-serif;
+    text-rendering: optimizeLegibility;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+}
+
+/* ビットコインマークのスタイル */
+.icon-bitcoin {
+    font-size: 36px;
+    font-weight: 700;
+    line-height: 1;
+    font-family: Arial, "Segoe UI", sans-serif;
+    color: #f7931a;
+}
+
+/* その他の絵文字スタイル */
+.icon-emoji {
+    font-size: 28px;
+    line-height: 1;
+    font-family: "Apple Color Emoji", "Segoe UI Emoji", "Noto Color Emoji", "Android Emoji", sans-serif;
+    text-rendering: optimizeLegibility;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+}
+
+/* デスクトップ対応 */
+@media (min-width: 992px) {
+    .icon-flag {
+        font-size: 40px;
+    }
+    
+    .icon-bitcoin {
+        font-size: 44px;
+    }
+    
+    .icon-emoji {
+        font-size: 36px;
+    }
+}
+
+/* 金額の桁数に応じたフォントサイズ調整 */
 .card-amount-new {
     font-size: 20px;
     font-weight: 700;
-    color: var(--text-primary);  /* ✅ CSS変数を使用 */
+    color: var(--text-primary);
     letter-spacing: -0.5px;
-    transition: color 0.3s ease;  /* ✅ スムーズな切り替え */
+    transition: color 0.3s ease;
 }
 
-/* 100万円以上（7桁以上）の場合 */
 .card-amount-new.amount-large {
     font-size: 17px;
     letter-spacing: -0.8px;
 }
 
-/* 1000万円以上（8桁以上）の場合 */
 .card-amount-new.amount-xlarge {
     font-size: 15px;
     letter-spacing: -1px;
