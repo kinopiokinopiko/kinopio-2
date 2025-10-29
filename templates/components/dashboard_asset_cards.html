@@ -4,7 +4,8 @@
     <a href="{{ url_for('assets.manage_assets', asset_type='jp_stock') }}" class="asset-card">
         <div class="card-header-new">
             <div class="card-icon" style="background: #e8f5e9;">
-                <span class="icon-flag">🇯🇵</span>
+                <span class="icon-text">JP</span>
+                <span class="icon-flag-emoji">🇯🇵</span>
             </div>
             <div class="card-info">
                 <div class="card-name-new">日本株</div>
@@ -43,7 +44,8 @@
     <a href="{{ url_for('assets.manage_assets', asset_type='us_stock') }}" class="asset-card">
         <div class="card-header-new">
             <div class="card-icon" style="background: #e3f2fd;">
-                <span class="icon-flag">🇺🇸</span>
+                <span class="icon-text">US</span>
+                <span class="icon-flag-emoji">🇺🇸</span>
             </div>
             <div class="card-info">
                 <div class="card-name-new">米国株</div>
@@ -265,19 +267,31 @@
 <style>
 /* ✅ アイコン表示の改善 */
 .card-icon {
+    position: relative;
     display: flex;
     align-items: center;
     justify-content: center;
 }
 
-/* 国旗のスタイル */
-.icon-flag {
-    font-size: 32px;
+/* テキスト表示（JP/US）- フォールバック用 */
+.icon-text {
+    font-size: 24px;
+    font-weight: 700;
+    color: rgba(0, 0, 0, 0.2);
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    position: absolute;
+}
+
+/* 国旗絵文字 - メイン表示 */
+.icon-flag-emoji {
+    font-size: 36px;
     line-height: 1;
-    font-family: "Apple Color Emoji", "Segoe UI Emoji", "Noto Color Emoji", "Android Emoji", sans-serif;
+    font-family: "Segoe UI Emoji", "Segoe UI Symbol", "Noto Color Emoji", "Apple Color Emoji", "Android Emoji", sans-serif;
     text-rendering: optimizeLegibility;
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
+    position: relative;
+    z-index: 1;
 }
 
 /* ビットコインマークのスタイル */
@@ -293,7 +307,7 @@
 .icon-emoji {
     font-size: 28px;
     line-height: 1;
-    font-family: "Apple Color Emoji", "Segoe UI Emoji", "Noto Color Emoji", "Android Emoji", sans-serif;
+    font-family: "Segoe UI Emoji", "Segoe UI Symbol", "Noto Color Emoji", "Apple Color Emoji", "Android Emoji", sans-serif;
     text-rendering: optimizeLegibility;
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
@@ -301,8 +315,12 @@
 
 /* デスクトップ対応 */
 @media (min-width: 992px) {
-    .icon-flag {
-        font-size: 40px;
+    .icon-text {
+        font-size: 28px;
+    }
+    
+    .icon-flag-emoji {
+        font-size: 44px;
     }
     
     .icon-bitcoin {
