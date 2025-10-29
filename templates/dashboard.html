@@ -4,9 +4,31 @@
 
 {% block extra_styles %}
 <style>
+    /* ✅ ダークモード用のCSS変数 */
+    :root {
+        --bg-primary: #f5f5f5;
+        --card-bg: #ffffff;
+        --text-primary: #333;
+        --text-secondary: #666;
+        --text-tertiary: #999;
+        --border-color: #f0f0f0;
+        --shadow: rgba(0,0,0,0.08);
+    }
+
+    [data-theme="dark"] {
+        --bg-primary: #1a1a1a;
+        --card-bg: #2d2d2d;
+        --text-primary: #e0e0e0;
+        --text-secondary: #b0b0b0;
+        --text-tertiary: #808080;
+        --border-color: #404040;
+        --shadow: rgba(0,0,0,0.3);
+    }
+
     /* ✅ ダークモード対応：既存スタイルをCSS変数で上書き */
     body {
         background: var(--bg-primary);
+        transition: background-color 0.3s ease;
     }
     
     .total-card,
@@ -19,25 +41,26 @@
     }
     
     .header-title,
-    .total-amount,
-    .card-amount-new {
+    .total-amount {
         color: var(--text-primary);
+        transition: color 0.3s ease;
     }
     
     .total-label,
     .profit-label,
-    .day-change-label,
-    .card-name-new,
-    .detail-label {
+    .day-change-label {
         color: var(--text-secondary);
+        transition: color 0.3s ease;
     }
     
     .update-time {
         color: var(--text-tertiary);
+        transition: color 0.3s ease;
     }
     
     .tab-btn {
         color: var(--text-tertiary);
+        transition: color 0.3s ease;
     }
     
     .tab-btn.active {
@@ -50,17 +73,38 @@
     
     .icon-btn svg {
         stroke: var(--text-primary);
+        transition: stroke 0.3s ease;
     }
     
     .tab-nav {
         border-bottom-color: var(--border-color);
+        transition: border-color 0.3s ease;
+    }
+    
+    /* ✅ カード内の要素をダークモード対応 */
+    .card-name-new {
+        color: var(--text-secondary);
+        transition: color 0.3s ease;
+    }
+    
+    .card-amount-new {
+        color: var(--text-primary);
+        transition: color 0.3s ease;
+    }
+    
+    .detail-label {
+        color: var(--text-tertiary);
+        transition: color 0.3s ease;
     }
     
     /* ✅ ダークモードで黒文字(#333)を白に変更 */
     [data-theme="dark"] .profit-amount.zero,
-    [data-theme="dark"] .day-change-amount.zero,
+    [data-theme="dark"] .day-change-amount.zero {
+        color: var(--text-primary);
+    }
+    
     [data-theme="dark"] .zero {
-        color: var(--text-primary) !important;
+        color: var(--text-primary);
     }
     
     /* ✅ detail-badgeのゼロ表示もダークモードで明るく */
@@ -73,15 +117,6 @@
     [data-theme="dark"] .day-change-badge.zero {
         background: #808080;
         color: #e0e0e0;
-    }
-    
-    /* ✅ 各資産カードの総額を強制的に白に（重要！） */
-    [data-theme="dark"] .card-amount-new {
-        color: var(--text-primary) !important;
-    }
-    
-    [data-theme="dark"] .card-name-new {
-        color: var(--text-secondary) !important;
     }
     
     /* ✅ テーマアイコンのスタイル */
@@ -345,7 +380,6 @@
     .card-amount-new {
         font-size: 20px;
         font-weight: 700;
-        color: #333;  /* ✅ デフォルトは#333のまま */
         letter-spacing: -0.5px;
         white-space: nowrap;
         overflow: hidden;
@@ -530,9 +564,284 @@
         height: 100%;
     }
 
-    /* レスポンシブデザイン（以下省略、元のまま） */
-    /* ... */
+    /* レスポンシブデザイン（元のまま） */
+    @media (max-width: 374px) {
+        .container {
+            padding: 12px 8px;
+        }
+        
+        .asset-grid {
+            gap: 8px;
+        }
+        
+        .asset-card {
+            padding: 10px;
+        }
+        
+        .card-icon {
+            width: 42px;
+            height: 42px;
+            font-size: 20px;
+        }
+        
+        .card-name-new {
+            font-size: 10px;
+        }
+        
+        .card-amount-new {
+            font-size: 15px;
+        }
+        
+        .card-details {
+            padding-left: 50px;
+        }
+        
+        .detail-label {
+            font-size: 9px;
+            min-width: 32px;
+        }
+        
+        .detail-badge {
+            font-size: 9px;
+            padding: 2px 5px;
+        }
+        
+        .detail-amount {
+            font-size: 11px;
+        }
+        
+        .total-amount {
+            font-size: 38px;
+        }
+        
+        .profit-label,
+        .day-change-label {
+            font-size: 12px;
+        }
+        
+        .profit-badge,
+        .day-change-badge {
+            font-size: 11px;
+            padding: 3px 8px;
+        }
+        
+        .profit-amount,
+        .day-change-amount {
+            font-size: 20px;
+        }
+        
+        .profit-day-grid {
+            gap: 12px;
+            padding: 0 4px;
+        }
+    }
+
+    @media (min-width: 375px) and (max-width: 599px) {
+        .container {
+            padding: 16px 12px;
+        }
+        
+        .asset-grid {
+            gap: 10px;
+        }
+        
+        .card-icon {
+            width: 48px;
+            height: 48px;
+            font-size: 22px;
+        }
+        
+        .card-name-new {
+            font-size: 11px;
+        }
+        
+        .card-amount-new {
+            font-size: 17px;
+        }
+        
+        .card-details {
+            padding-left: 56px;
+        }
+        
+        .detail-label {
+            font-size: 10px;
+            min-width: 36px;
+        }
+        
+        .detail-badge {
+            font-size: 10px;
+            padding: 2px 7px;
+        }
+        
+        .detail-amount {
+            font-size: 12px;
+        }
+        
+        .total-amount {
+            font-size: 44px;
+        }
+        
+        .profit-label,
+        .day-change-label {
+            font-size: 13px;
+        }
+        
+        .profit-badge,
+        .day-change-badge {
+            font-size: 12px;
+            padding: 3px 10px;
+        }
+        
+        .profit-amount,
+        .day-change-amount {
+            font-size: 24px;
+        }
+        
+        .profit-day-grid {
+            gap: 16px;
+            padding: 0 8px;
+        }
+    }
+
+    @media (min-width: 600px) and (max-width: 991px) {
+        .asset-grid {
+            grid-template-columns: repeat(3, 1fr);
+            gap: 14px;
+        }
+        
+        .asset-card {
+            padding: 16px;
+        }
+        
+        .card-icon {
+            width: 60px;
+            height: 60px;
+            font-size: 28px;
+        }
+        
+        .card-name-new {
+            font-size: 13px;
+        }
+        
+        .card-amount-new {
+            font-size: 22px;
+        }
+        
+        .card-details {
+            padding-left: 72px;
+        }
+        
+        .detail-label {
+            font-size: 12px;
+        }
+        
+        .detail-badge {
+            font-size: 12px;
+            padding: 3px 10px;
+        }
+        
+        .detail-amount {
+            font-size: 14px;
+        }
+    }
+
+    @media (min-width: 992px) {
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+        
+        .asset-grid {
+            grid-template-columns: repeat(4, 1fr);
+            gap: 16px;
+        }
+        
+        .asset-card {
+            padding: 20px;
+        }
+        
+        .card-header-new {
+            margin-bottom: 20px;
+            gap: 12px;
+        }
+        
+        .card-icon {
+            width: 70px;
+            height: 70px;
+            font-size: 32px;
+        }
+        
+        .card-name-new {
+            font-size: 14px;
+        }
+        
+        .card-amount-new {
+            font-size: 26px;
+        }
+        
+        .card-details {
+            padding-left: 82px;
+            gap: 4px;
+        }
+        
+        .detail-label {
+            font-size: 13px;
+        }
+        
+        .detail-badge {
+            font-size: 13px;
+            padding: 4px 12px;
+        }
+        
+        .detail-amount {
+            font-size: 16px;
+            margin-bottom: 8px;
+        }
+        
+        .tab-btn {
+            padding: 12px 20px;
+            font-size: 15px;
+        }
+        
+        .legend-controls .legend-item {
+            font-size: 13px;
+        }
+        
+        .total-amount {
+            font-size: 56px;
+        }
+        
+        .profit-label,
+        .day-change-label {
+            font-size: 16px;
+        }
+        
+        .profit-badge,
+        .day-change-badge {
+            font-size: 15px;
+            padding: 5px 14px;
+        }
+        
+        .profit-amount,
+        .day-change-amount {
+            font-size: 32px;
+        }
+        
+        .profit-day-grid {
+            gap: 32px;
+            padding: 0 24px;
+        }
+    }
 </style>
 {% endblock %}
 
-<!-- 以下省略 -->
+{% block content %}
+{% include 'components/dashboard_header.html' %}
+{% include 'components/dashboard_summary.html' %}
+{% include 'components/dashboard_charts.html' %}
+{% include 'components/dashboard_asset_cards.html' %}
+{% endblock %}
+
+{% block scripts %}
+{% include 'components/dashboard_scripts.html' %}
+{% endblock %}
