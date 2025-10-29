@@ -50,6 +50,17 @@ document.addEventListener('DOMContentLoaded', function() {
         return `rgba(${+r},${+g},${+b},${alpha})`;
     }
 
+    // ✅ ダークモードに応じた軸の色を取得する関数
+    function getAxisColor() {
+        const isDark = document.documentElement.getAttribute('data-theme') === 'dark';
+        return isDark ? '#e0e0e0' : '#666';
+    }
+
+    function getGridColor() {
+        const isDark = document.documentElement.getAttribute('data-theme') === 'dark';
+        return isDark ? 'rgba(255, 255, 255, 0.1)' : 'rgba(0, 0, 0, 0.1)';
+    }
+
     // 円グラフ
     if (chartDataJSON) {
         try {
@@ -149,11 +160,23 @@ document.addEventListener('DOMContentLoaded', function() {
                             y: {
                                 beginAtZero: false,
                                 ticks: {
+                                    color: getAxisColor(),  // ✅ ダークモード対応
                                     callback: (value) => {
                                         if (value >= 1e8) return `¥${(value/1e8).toFixed(1)}億`;
                                         if (value >= 1e4) return `¥${(value/1e4).toFixed(0)}万`;
                                         return `¥${value.toLocaleString()}`;
                                     }
+                                },
+                                grid: {
+                                    color: getGridColor()  // ✅ グリッド線の色
+                                }
+                            },
+                            x: {
+                                ticks: {
+                                    color: getAxisColor()  // ✅ ダークモード対応
+                                },
+                                grid: {
+                                    color: getGridColor()  // ✅ グリッド線の色
                                 }
                             }
                         }
@@ -189,20 +212,57 @@ document.addEventListener('DOMContentLoaded', function() {
                             datalabels: { display: false }
                         },
                         scales: {
-                            x: { stacked: true },
+                            x: { 
+                                stacked: true,
+                                ticks: {
+                                    color: getAxisColor()  // ✅ ダークモード対応
+                                },
+                                grid: {
+                                    color: getGridColor()  // ✅ グリッド線の色
+                                }
+                            },
                             y: {
                                 stacked: true,
                                 ticks: {
+                                    color: getAxisColor(),  // ✅ ダークモード対応
                                     callback: function(value) {
                                         if (value >= 100000000) return '¥' + (value / 100000000).toFixed(1) + '億';
                                         if (value >= 10000) return '¥' + (value / 10000).toLocaleString() + '万';
                                         return '¥' + value.toLocaleString();
                                     }
+                                },
+                                grid: {
+                                    color: getGridColor()  // ✅ グリッド線の色
                                 }
                             }
                         }
                     }
                 });
+
+                // ✅ テーマ切り替え時にチャートの軸の色を更新
+                const themeToggle = document.getElementById('theme-toggle');
+                if (themeToggle) {
+                    themeToggle.addEventListener('click', function() {
+                        setTimeout(() => {
+                            // 折れ線グラフの軸の色を更新
+                            if (myLineChart) {
+                                myLineChart.options.scales.y.ticks.color = getAxisColor();
+                                myLineChart.options.scales.x.ticks.color = getAxisColor();
+                                myLineChart.options.scales.y.grid.color = getGridColor();
+                                myLineChart.options.scales.x.grid.color = getGridColor();
+                                myLineChart.update();
+                            }
+                            // 棒グラフの軸の色を更新
+                            if (myBarChart) {
+                                myBarChart.options.scales.y.ticks.color = getAxisColor();
+                                myBarChart.options.scales.x.ticks.color = getAxisColor();
+                                myBarChart.options.scales.y.grid.color = getGridColor();
+                                myBarChart.options.scales.x.grid.color = getGridColor();
+                                myBarChart.update();
+                            }
+                        }, 100);
+                    });
+                }
 
                 const lineToggles = document.querySelectorAll('.line-toggle');
                 const updateLineVisuals = () => {
@@ -267,4 +327,3 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 });
 </script>
-
