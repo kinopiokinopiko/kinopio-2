@@ -45,74 +45,25 @@ class DatabaseManager:
             self._init_pool()
     
     def _init_pool(self):
-        """コネクションプール初期化（Neon Pooler対応）"""
-        if self.use_postgres and self.config.DATABASE_URL:
-            try:
-                logger.info("🔌 Creating PostgreSQL connection pool...")
-                
-                import urllib.parse
-                
-                result = urllib.parse.urlparse(self.config.DATABASE_URL)
-                
-                # ✅ Neon Pooler対応：statement_timeoutをoptionsから削除
-                connection_params = {
-                    'user': result.username,
-                    'password': result.password,
-                    'host': result.hostname,
-                    'port': result.port or 5432,
-                    'database': result.path[1:],
-                    'sslmode': 'require',
-                    'connect_timeout': 10,
-                    'keepalives': 1,
-                    'keepalives_idle': 30,
-                    'keepalives_interval': 10,
-                    'keepalives_count': 5,
-                    # ✅ statement_timeoutを削除（Neon Poolerでサポートされていない）
-                }
-                
-                logger.info(f"📊 Connecting to: {result.hostname}:{result.port or 5432}/{result.path[1:]}")
-                
-                # ✅ Neon Poolerを検出
-                is_neon_pooler = '-pooler.' in result.hostname
-                if is_neon_pooler:
-                    logger.info("🔍 Detected Neon Pooler connection")
-                
-                self.pool = pg_pool.SimpleConnectionPool(
-                    1,   # minconn
-                    10,  # maxconn
-                    **connection_params
-                )
-                logger.info("✅ PostgreSQL connection pool initialized")
-                
-                # 接続テスト
-                test_conn = self.pool.getconn()
-                try:
-                    cursor = test_conn.cursor()
-                    cursor.execute('SELECT version()')
-                    version = cursor.fetchone()[0]
-                    logger.info(f"✅ Database version: {version[:100]}...")
-                    
-                    if 'neon' in version.lower():
-                        logger.info("✅ Connected to Neon PostgreSQL!")
-                    
-                    # ✅ 接続後にstatement_timeoutを設定（Neon Poolerでも動作）
-                    if is_neon_pooler:
-                        cursor.execute('SET statement_timeout = 30000')
-                        logger.info("✅ Statement timeout set to 30s (post-connection)")
-                    
-                    cursor.close()
-                    test_conn.commit()
-                finally:
-                    self.pool.putconn(test_conn)
-                
-            except Exception as e:
-                logger.error(f"❌ Failed to create connection pool: {e}", exc_info=True)
-                
-                if self.is_render:
-                    raise RuntimeError(f"Failed to connect to PostgreSQL in Render environment: {e}")
-                
-                self.use_postgres = False
-                logger.info("⚠️ Falling back to SQLite (local environment only)")
+    """コネクションプール初期化（Neon PostgreSQL最適化版）"""
+    if self.use_postgres and self.config.DATABASE_URL:
+        try:
+            logger.info("🔌 Creating PostgreSQL connection pool (Neon optimized)...")
+            self.pool = pg_pool.SimpleConnectionPool(
+                1,   # minconn（Neon推奨）
+                10,  # maxconn（Neon推奨）
+                self.config.DATABASE_URL,
+                connect_timeout=30,           # タイムアウト延長
+                keepalives=1,                 # Keep-alive有効化
+                keepalives_idle=30,           # アイドル30秒後にKA送信
+                keepalives_interval=10,       # KA間隔10秒
+                keepalives_count=5            # KA失敗5回で切断
+            )
+            logger.info("✅ PostgreSQL connection pool initialized (Neon optimized)")
+        except Exception as e:
+            logger.error(f"❌ Failed to create connection pool: {e}", exc_info=True)
+            self.use_postgres = False
+            logger.info("⚠️ Falling back to SQLite")
     
     def _test_connection(self, conn):
         """接続が有効かテスト"""
@@ -488,3 +439,4 @@ class DatabaseManager:
 
 # グローバルデータベースマネージャー
 db_manager = DatabaseManager()
+
