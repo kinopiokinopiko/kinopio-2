@@ -23,7 +23,6 @@ class DatabaseManager:
         self.pool = None
         self.use_postgres = self.config.USE_POSTGRES and POSTGRES_AVAILABLE
         
-        # ✅ Render環境の検出
         self.is_render = os.environ.get('RENDER') is not None
         
         logger.info(f"🔧 DatabaseManager initializing...")
@@ -31,7 +30,6 @@ class DatabaseManager:
         logger.info(f"📊 USE_POSTGRES: {self.use_postgres}")
         logger.info(f"📊 DATABASE_URL: {self.config.DATABASE_URL[:50] if self.config.DATABASE_URL else 'None'}...")
         
-        # ✅ Render環境でPostgreSQLが使えない場合はエラー
         if self.is_render and not self.use_postgres:
             error_msg = (
                 "❌ CRITICAL ERROR: Render environment must use PostgreSQL!\n"
@@ -47,16 +45,16 @@ class DatabaseManager:
             self._init_pool()
     
     def _init_pool(self):
-        """コネクションプール初期化"""
+        """コネクションプール初期化（Neon Pooler対応）"""
         if self.use_postgres and self.config.DATABASE_URL:
             try:
                 logger.info("🔌 Creating PostgreSQL connection pool...")
                 
-                # ✅ Neon用の接続設定
                 import urllib.parse
                 
                 result = urllib.parse.urlparse(self.config.DATABASE_URL)
                 
+                # ✅ Neon Pooler対応：statement_timeoutをoptionsから削除
                 connection_params = {
                     'user': result.username,
                     'password': result.password,
@@ -69,10 +67,15 @@ class DatabaseManager:
                     'keepalives_idle': 30,
                     'keepalives_interval': 10,
                     'keepalives_count': 5,
-                    'options': '-c statement_timeout=30000'
+                    # ✅ statement_timeoutを削除（Neon Poolerでサポートされていない）
                 }
                 
                 logger.info(f"📊 Connecting to: {result.hostname}:{result.port or 5432}/{result.path[1:]}")
+                
+                # ✅ Neon Poolerを検出
+                is_neon_pooler = '-pooler.' in result.hostname
+                if is_neon_pooler:
+                    logger.info("🔍 Detected Neon Pooler connection")
                 
                 self.pool = pg_pool.SimpleConnectionPool(
                     1,   # minconn
@@ -92,6 +95,11 @@ class DatabaseManager:
                     if 'neon' in version.lower():
                         logger.info("✅ Connected to Neon PostgreSQL!")
                     
+                    # ✅ 接続後にstatement_timeoutを設定（Neon Poolerでも動作）
+                    if is_neon_pooler:
+                        cursor.execute('SET statement_timeout = 30000')
+                        logger.info("✅ Statement timeout set to 30s (post-connection)")
+                    
                     cursor.close()
                     test_conn.commit()
                 finally:
@@ -100,11 +108,9 @@ class DatabaseManager:
             except Exception as e:
                 logger.error(f"❌ Failed to create connection pool: {e}", exc_info=True)
                 
-                # ✅ Render環境ではエラーで停止
                 if self.is_render:
                     raise RuntimeError(f"Failed to connect to PostgreSQL in Render environment: {e}")
                 
-                # ローカル環境ではSQLiteにフォールバック
                 self.use_postgres = False
                 logger.info("⚠️ Falling back to SQLite (local environment only)")
     
@@ -176,15 +182,19 @@ class DatabaseManager:
     
     @contextmanager
     def get_db(self):
-        """データベース接続を取得"""
+        """データベース接続を取得（Neon Pooler対応）"""
         if self.use_postgres:
             conn = None
             try:
                 conn = self._get_connection_with_retry()
                 
-                cursor = conn.cursor()
-                cursor.execute('SET statement_timeout = 30000')
-                cursor.close()
+                # ✅ 接続後にstatement_timeoutを設定（Neon Poolerでも動作）
+                try:
+                    cursor = conn.cursor()
+                    cursor.execute('SET statement_timeout = 30000')
+                    cursor.close()
+                except Exception as timeout_error:
+                    logger.warning(f"⚠️ Could not set statement_timeout: {timeout_error}")
                 
                 class DictConnection:
                     def __init__(self, real_conn, manager):
@@ -265,13 +275,11 @@ class DatabaseManager:
                     except Exception as e:
                         logger.error(f"❌ Error returning connection to pool: {e}")
         else:
-            # ✅ Render環境ではSQLiteを使わない
             if self.is_render:
                 error_msg = "❌ SQLite cannot be used in Render environment!"
                 logger.error(error_msg)
                 raise RuntimeError(error_msg)
             
-            # ローカル環境のみSQLiteを許可
             conn = sqlite3.connect('portfolio.db', timeout=10.0)
             conn.row_factory = sqlite3.Row
             try:
@@ -379,7 +387,6 @@ class DatabaseManager:
             
             logger.info("✅ PostgreSQL tables created")
             
-            # デモユーザー確認（作成はしない）
             from werkzeug.security import generate_password_hash
             
             cursor.execute("SELECT id, username FROM users WHERE username = %s", ('demo',))
@@ -402,7 +409,6 @@ class DatabaseManager:
     
     def _init_sqlite(self, cursor, conn):
         """SQLite テーブル作成（ローカル環境のみ）"""
-        # ✅ Render環境では実行されない（get_db()でエラーになる）
         try:
             logger.info("✅ Creating SQLite tables...")
             
