@@ -1,4 +1,5 @@
 from datetime import datetime, timezone, timedelta
+import time
 from utils import logger
 from models import db_manager
 from config import get_config
@@ -160,17 +161,21 @@ class AssetService:
     
     def _save_snapshot(self, user_id, today, values, total_value, prev_values, prev_total_value):
         """スナップショットを保存（短いトランザクション、Neon対応）"""
-        try:
-            logger.info(f"💾 Saving snapshot to database...")
-            
-            # ✅ 短いトランザクションで保存
-            with db_manager.get_db() as conn:
-                c = conn.cursor()
+        max_retries = 3
+        last_error = None
+        
+        for attempt in range(max_retries):
+            try:
+                logger.info(f"💾 Saving snapshot to database (attempt {attempt + 1}/{max_retries})...")
                 
-                # ✅ 修正: use_postgresを使ってプレースホルダーを切り替え
-                if self.use_postgres:
-                    # PostgreSQLの場合：UPSERT（ON CONFLICT）
-                    c.execute('''INSERT INTO asset_history 
+                # ✅ 短いトランザクションで保存
+                with db_manager.get_db() as conn:
+                    c = conn.cursor()
+                    
+                    # ✅ 修正: use_postgresを使ってプレースホルダーを切り替え
+                    if self.use_postgres:
+                        # PostgreSQLの場合：UPSERT（ON CONFLICT）
+                        c.execute('''INSERT INTO asset_history
                                 (user_id, record_date, jp_stock_value, us_stock_value, cash_value, 
                                  gold_value, crypto_value, investment_trust_value, insurance_value, total_value,
                                  prev_jp_stock_value, prev_us_stock_value, prev_cash_value,
@@ -195,54 +200,74 @@ class AssetService:
                                     prev_investment_trust_value = EXCLUDED.prev_investment_trust_value,
                                     prev_insurance_value = EXCLUDED.prev_insurance_value,
                                     prev_total_value = EXCLUDED.prev_total_value''',
-                             (user_id, today, values['jp_stock'], values['us_stock'], values['cash'],
-                              values['gold'], values['crypto'], values['investment_trust'], values['insurance'], 
-                              total_value,
-                              prev_values['jp_stock'], prev_values['us_stock'], prev_values['cash'],
-                              prev_values['gold'], prev_values['crypto'], prev_values['investment_trust'],
-                              prev_values['insurance'], prev_total_value))
-                else:
-                    # SQLiteの場合
-                    c.execute('''INSERT OR REPLACE INTO asset_history 
+                                 (user_id, today, values['jp_stock'], values['us_stock'], values['cash'],
+                                  values['gold'], values['crypto'], values['investment_trust'], values['insurance'], 
+                                  total_value,
+                                  prev_values['jp_stock'], prev_values['us_stock'], prev_values['cash'],
+                                  prev_values['gold'], prev_values['crypto'], prev_values['investment_trust'],
+                                  prev_values['insurance'], prev_total_value))
+                    else:
+                        # SQLiteの場合
+                        c.execute('''INSERT OR REPLACE INTO asset_history
                                 (user_id, record_date, jp_stock_value, us_stock_value, cash_value, 
                                  gold_value, crypto_value, investment_trust_value, insurance_value, total_value,
                                  prev_jp_stock_value, prev_us_stock_value, prev_cash_value,
                                  prev_gold_value, prev_crypto_value, prev_investment_trust_value,
                                  prev_insurance_value, prev_total_value)
                                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)''',
-                             (user_id, today, values['jp_stock'], values['us_stock'], values['cash'],
-                              values['gold'], values['crypto'], values['investment_trust'], values['insurance'], 
-                              total_value,
-                              prev_values['jp_stock'], prev_values['us_stock'], prev_values['cash'],
-                              prev_values['gold'], prev_values['crypto'], prev_values['investment_trust'],
-                              prev_values['insurance'], prev_total_value))
+                                 (user_id, today, values['jp_stock'], values['us_stock'], values['cash'],
+                                  values['gold'], values['crypto'], values['investment_trust'], values['insurance'], 
+                                  total_value,
+                                  prev_values['jp_stock'], prev_values['us_stock'], prev_values['cash'],
+                                  prev_values['gold'], prev_values['crypto'], prev_values['investment_trust'],
+                                  prev_values['insurance'], prev_total_value))
+                    
+                    # ✅ 明示的にコミット
+                    conn.commit()
+                    logger.info(f"✅ Data committed to database")
                 
-                # ✅ 明示的にコミット
-                conn.commit()
-                logger.info(f"✅ Data committed to database")
+                # ✅ 別トランザクションで検証
+                time.sleep(0.5)  # Neon対応：少し待機してからデータの永続化を確認
+                
+                with db_manager.get_db() as conn:
+                    c = conn.cursor()
+                    
+                    # ✅ 修正: use_postgresを使ってプレースホルダーを切り替え
+                    if self.use_postgres:
+                        c.execute('SELECT total_value FROM asset_history WHERE user_id = %s AND record_date = %s',
+                                 (user_id, today))
+                    else:
+                        c.execute('SELECT total_value FROM asset_history WHERE user_id = ? AND record_date = ?',
+                                 (user_id, today))
+                    
+                    saved_record = c.fetchone()
+                    if saved_record:
+                        logger.info(f"✅ Verified: Record saved successfully")
+                        logger.info(f"  📊 Saved total: ¥{float(saved_record['total_value'] or 0):,.2f}")
+                        return  # Success, exit retry loop
+                    else:
+                        logger.error(f"❌ Verification failed: Record not found after save")
+                        raise RuntimeError("Snapshot verification failed after save")
             
-            # ✅ 別トランザクションで検証
-            with db_manager.get_db() as conn:
-                c = conn.cursor()
+            except Exception as save_error:
+                last_error = save_error
+                logger.error(f"❌ Error saving snapshot (attempt {attempt + 1}/{max_retries}): {save_error}", exc_info=True)
                 
-                # ✅ 修正: use_postgresを使ってプレースホルダーを切り替え
-                if self.use_postgres:
-                    c.execute('SELECT total_value FROM asset_history WHERE user_id = %s AND record_date = %s',
-                             (user_id, today))
-                else:
-                    c.execute('SELECT total_value FROM asset_history WHERE user_id = ? AND record_date = ?',
-                             (user_id, today))
+                # ✅ Neon特有のエラーをチェック
+                error_str = str(save_error).lower()
+                if 'timeout' in error_str or 'connection' in error_str or 'closed' in error_str:
+                    logger.warning(f"⚠️ Detected Neon connection issue, retrying...")
+                    if attempt < max_retries - 1:
+                        time.sleep(2 ** attempt)  # Exponential backoff
+                        continue
                 
-                saved_record = c.fetchone()
-                if saved_record:
-                    logger.info(f"✅ Verified: Record saved successfully")
-                    logger.info(f"  📊 Saved total: ¥{float(saved_record['total_value'] or 0):,.2f}")
-                else:
-                    logger.error(f"❌ Verification failed: Record not found after save")
-        
-        except Exception as save_error:
-            logger.error(f"❌ Error saving snapshot: {save_error}", exc_info=True)
-            raise
+                # それ以外のエラーはすぐに失敗
+                if attempt == max_retries - 1:
+                    raise
+                    
+        # すべてのリトライが失敗
+        logger.error(f"❌ Failed to save snapshot after {max_retries} attempts")
+        raise last_error if last_error else RuntimeError("Failed to save snapshot")
     
     def update_user_prices(self, user_id):
         """特定ユーザーの全資産価格を更新（並列処理、Neon対応）"""
@@ -304,33 +329,53 @@ class AssetService:
     
     def _update_asset_prices(self, updated_prices):
         """資産価格を更新（短いトランザクション、Neon対応）"""
-        try:
-            logger.info(f"💾 Updating {len(updated_prices)} assets in database...")
-            
-            # ✅ 短いトランザクションで更新
-            with db_manager.get_db() as conn:
-                c = conn.cursor()
-                
-                # ✅ 修正: use_postgresを使ってプレースホルダーを切り替え
-                if self.use_postgres:
-                    # PostgreSQLの場合：個別にUPDATE
-                    for price_data in updated_prices:
-                        c.execute('UPDATE assets SET price = %s, name = %s WHERE id = %s',
-                                 (float(price_data['price']), str(price_data.get('name', '')), int(price_data['id'])))
-                else:
-                    # SQLiteの場合：executemanyを使用
-                    update_data = [(float(p['price']), str(p.get('name', '')), int(p['id'])) for p in updated_prices]
-                    c.executemany('UPDATE assets SET price = ?, name = ? WHERE id = ?', update_data)
-                
-                # ✅ 明示的にコミット
-                conn.commit()
-                logger.info(f"✅ Database update committed")
-            
-            return len(updated_prices)
+        max_retries = 3
+        last_error = None
         
-        except Exception as update_error:
-            logger.error(f"❌ Error updating database: {update_error}", exc_info=True)
-            raise
+        for attempt in range(max_retries):
+            try:
+                logger.info(f"💾 Updating {len(updated_prices)} assets in database (attempt {attempt + 1}/{max_retries})...")
+                
+                # ✅ 短いトランザクションで更新
+                with db_manager.get_db() as conn:
+                    c = conn.cursor()
+                    
+                    # ✅ 修正: use_postgresを使ってプレースホルダーを切り替え
+                    if self.use_postgres:
+                        # PostgreSQLの場合：個別にUPDATE
+                        for price_data in updated_prices:
+                            c.execute('UPDATE assets SET price = %s, name = %s WHERE id = %s',
+                                     (float(price_data['price']), str(price_data.get('name', '')), int(price_data['id'])))
+                    else:
+                        # SQLiteの場合：executemanyを使用
+                        update_data = [(float(p['price']), str(p.get('name', '')), int(p['id'])) for p in updated_prices]
+                        c.executemany('UPDATE assets SET price = ?, name = ? WHERE id = ?', update_data)
+                    
+                    # ✅ 明示的にコミット
+                    conn.commit()
+                    logger.info(f"✅ Database update committed")
+                
+                return len(updated_prices)
+            
+            except Exception as update_error:
+                last_error = update_error
+                logger.error(f"❌ Error updating database (attempt {attempt + 1}/{max_retries}): {update_error}", exc_info=True)
+                
+                # ✅ Neon特有のエラーをチェック
+                error_str = str(update_error).lower()
+                if 'timeout' in error_str or 'connection' in error_str or 'closed' in error_str:
+                    logger.warning(f"⚠️ Detected Neon connection issue, retrying...")
+                    if attempt < max_retries - 1:
+                        time.sleep(2 ** attempt)  # Exponential backoff
+                        continue
+                
+                # それ以外のエラーはすぐに失敗
+                if attempt == max_retries - 1:
+                    raise
+        
+        # すべてのリトライが失敗
+        logger.error(f"❌ Failed to update asset prices after {max_retries} attempts")
+        raise last_error if last_error else RuntimeError("Failed to update asset prices")
 
 # グローバルサービスインスタンス
 asset_service = AssetService()

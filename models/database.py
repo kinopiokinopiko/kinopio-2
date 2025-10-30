@@ -96,9 +96,10 @@ class DatabaseManager:
                         logger.info("✅ Connected to Neon PostgreSQL!")
                     
                     # ✅ 接続後にstatement_timeoutを設定（Neon Poolerでも動作）
+                    # ✅ Neon対応：タイムアウトを5分に延長（スケジュールタスク対応）
                     if is_neon_pooler:
-                        cursor.execute('SET statement_timeout = 30000')
-                        logger.info("✅ Statement timeout set to 30s (post-connection)")
+                        cursor.execute('SET statement_timeout = 300000')
+                        logger.info("✅ Statement timeout set to 5 minutes (post-connection)")
                     
                     cursor.close()
                     test_conn.commit()
@@ -189,9 +190,10 @@ class DatabaseManager:
                 conn = self._get_connection_with_retry()
                 
                 # ✅ 接続後にstatement_timeoutを設定（Neon Poolerでも動作）
+                # ✅ Neon対応：タイムアウトを5分に延長（スケジュールタスク対応）
                 try:
                     cursor = conn.cursor()
-                    cursor.execute('SET statement_timeout = 30000')
+                    cursor.execute('SET statement_timeout = 300000')
                     cursor.close()
                 except Exception as timeout_error:
                     logger.warning(f"⚠️ Could not set statement_timeout: {timeout_error}")

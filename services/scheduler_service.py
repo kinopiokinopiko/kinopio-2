@@ -24,7 +24,14 @@ class SchedulerManager:
             logger.info("=" * 80)
             logger.info("🔄 SCHEDULED TASK STARTED: Price update for all users")
             logger.info(f"⏰ Timestamp: {time.strftime('%Y-%m-%d %H:%M:%S JST')}")
+            logger.info(f"📊 Database: {'Neon PostgreSQL' if self.use_postgres else 'SQLite'}")
             logger.info("=" * 80)
+            
+            # ✅ データベース接続の健全性チェック
+            from models import db_manager
+            if not db_manager.health_check():
+                logger.error("❌ Database health check failed! Cannot proceed with scheduled task.")
+                return
             
             # ✅ Step 1: ユーザーリストを取得（短いトランザクション）
             users = self._fetch_all_users()
@@ -62,8 +69,13 @@ class SchedulerManager:
                     asset_service.record_asset_snapshot(user_id)
                     logger.info(f"✅ Step 2 completed: Snapshot recorded")
                     
-                    success_count += 1
-                    logger.info(f"✅ User {username} processed successfully")
+                    # ✅ Step 3: データが実際に保存されたか確認
+                    if self._verify_snapshot_saved(user_id):
+                        success_count += 1
+                        logger.info(f"✅ User {username} processed and verified successfully")
+                    else:
+                        failed_users.append((username, "Snapshot verification failed"))
+                        logger.error(f"❌ Snapshot verification failed for {username}")
                     
                     # ✅ ユーザー間で少し待機（Neonの負荷分散）
                     time.sleep(2)
@@ -103,6 +115,33 @@ class SchedulerManager:
         except Exception as e:
             logger.error(f"❌ Error fetching users: {e}", exc_info=True)
             return []
+    
+    def _verify_snapshot_saved(self, user_id):
+        """スナップショットが保存されたか確認"""
+        try:
+            from datetime import datetime, timezone, timedelta
+            jst = timezone(timedelta(hours=9))
+            today = datetime.now(jst).date()
+            
+            with db_manager.get_db() as conn:
+                c = conn.cursor()
+                if self.use_postgres:
+                    c.execute('SELECT id, total_value FROM asset_history WHERE user_id = %s AND record_date = %s',
+                             (user_id, today))
+                else:
+                    c.execute('SELECT id, total_value FROM asset_history WHERE user_id = ? AND record_date = ?',
+                             (user_id, today))
+                
+                record = c.fetchone()
+                if record:
+                    logger.info(f"✅ Verified: Snapshot exists in database (ID: {record['id']}, Total: ¥{float(record['total_value'] or 0):,.2f})")
+                    return True
+                else:
+                    logger.error(f"❌ Verification failed: No snapshot found for user {user_id} on {today}")
+                    return False
+        except Exception as e:
+            logger.error(f"❌ Error verifying snapshot: {e}", exc_info=True)
+            return False
     
     def _self_ping(self):
         """定期的に自身にpingを送信してスリープを防止"""
