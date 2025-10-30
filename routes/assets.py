@@ -432,8 +432,6 @@ def update_prices():
     asset_type = request.form.get('asset_type')
     
     try:
-        logger.info(f"🔄 === Starting price update for {asset_type} (user {user_id}) ===")
-        
         with db_manager.get_db() as conn:
             c = conn.cursor()
             
@@ -450,7 +448,7 @@ def update_prices():
             flash('更新する資産がありません', 'warning')
             return redirect(url_for('assets.manage_assets', asset_type=asset_type))
         
-        # ✅ 修正: 辞書型のリストに変換
+        # 辞書型のリストに変換
         assets_list = []
         for asset in assets:
             assets_list.append({
@@ -459,7 +457,7 @@ def update_prices():
                 'symbol': str(asset['symbol'])
             })
         
-        # ✅ 修正: 並列価格取得（辞書型のリストを返す）
+        # 並列価格取得
         updated_prices = price_service.fetch_prices_parallel(assets_list)
         
         if not updated_prices:
@@ -484,18 +482,19 @@ def update_prices():
             
             conn.commit()
         
-        logger.info(f"✅ Updated {len(updated_prices)} prices for {asset_type}")
+        logger.info(f"✅ Updated {len(updated_prices)} prices for user {user_id}")
         
-        # ✅ 価格更新後に当日のスナップショットを保存
+        # ✅ 価格更新後にスナップショットを保存
         try:
-            logger.info(f"📸 Saving snapshot after price update...")
+            logger.info(f"📸 Recording snapshot after {asset_type} price update...")
+            from services.asset_service import asset_service
             asset_service.record_asset_snapshot(user_id)
-            logger.info(f"✅ Snapshot saved successfully")
+            logger.info(f"✅ Snapshot recorded successfully")
+            flash(f'{len(updated_prices)}件の価格を更新し、スナップショットを保存しました', 'success')
         except Exception as snapshot_error:
-            logger.error(f"❌ Failed to save snapshot: {snapshot_error}", exc_info=True)
-            # スナップショット保存に失敗しても価格更新は成功とする
+            logger.warning(f"⚠️ Failed to record snapshot: {snapshot_error}")
+            flash(f'{len(updated_prices)}件の価格を更新しました（スナップショット保存に失敗）', 'success')
         
-        flash(f'{len(updated_prices)}件の価格を更新しました', 'success')
         return redirect(url_for('assets.manage_assets', asset_type=asset_type))
     
     except Exception as e:
@@ -503,7 +502,7 @@ def update_prices():
         flash('価格の更新に失敗しました', 'error')
         return redirect(url_for('assets.manage_assets', asset_type=asset_type))
 
-@assets_bp.route('/update_all_prices', methods=['POST'])
+@@assets_bp.route('/update_all_prices', methods=['POST'])
 def update_all_prices():
     """全資産の価格を更新 + スナップショット保存"""
     user = get_current_user()
@@ -514,8 +513,6 @@ def update_all_prices():
     user_id = user['id']
     
     try:
-        logger.info(f"🔄 === Starting update all prices (user {user_id}) ===")
-        
         with db_manager.get_db() as conn:
             c = conn.cursor()
             
@@ -535,7 +532,7 @@ def update_all_prices():
             flash('更新する資産がありません', 'warning')
             return redirect(url_for('dashboard.dashboard'))
         
-        # ✅ 修正: 辞書型のリストに変換
+        # 辞書型のリストに変換
         assets_list = []
         for asset in assets:
             assets_list.append({
@@ -546,7 +543,7 @@ def update_all_prices():
         
         logger.info(f"🔄 Starting price update for {len(assets_list)} assets")
         
-        # ✅ 修正: 並列価格取得
+        # 並列価格取得
         updated_prices = price_service.fetch_prices_parallel(assets_list)
         
         if not updated_prices:
@@ -571,17 +568,18 @@ def update_all_prices():
             
             conn.commit()
         
-        logger.info(f"✅ Updated all prices ({len(updated_prices)} assets)")
+        logger.info(f"✅ Updated all prices ({len(updated_prices)} assets) for user {user_id}")
         
-        # ✅ 価格更新後に当日のスナップショットを保存
+        # ✅ 価格更新後にスナップショットを保存
         try:
-            logger.info(f"📸 Saving snapshot after price update...")
+            logger.info(f"📸 Recording snapshot after price update for user {user_id}...")
+            from services.asset_service import asset_service
             asset_service.record_asset_snapshot(user_id)
-            logger.info(f"✅ Snapshot saved successfully")
+            logger.info(f"✅ Snapshot recorded successfully after price update")
             flash(f'{len(updated_prices)}件の価格を更新し、スナップショットを保存しました', 'success')
         except Exception as snapshot_error:
-            logger.error(f"❌ Failed to save snapshot: {snapshot_error}", exc_info=True)
-            flash(f'{len(updated_prices)}件の価格を更新しました（スナップショット保存に失敗）', 'warning')
+            logger.warning(f"⚠️ Failed to record snapshot after price update: {snapshot_error}")
+            flash(f'{len(updated_prices)}件の価格を更新しました（スナップショット保存に失敗）', 'success')
         
         return redirect(url_for('dashboard.dashboard'))
     
@@ -589,3 +587,9 @@ def update_all_prices():
         logger.error(f"❌ Error updating all prices: {e}", exc_info=True)
         flash('価格の更新に失敗しました', 'error')
         return redirect(url_for('dashboard.dashboard'))
+    
+    except Exception as e:
+        logger.error(f"❌ Error updating all prices: {e}", exc_info=True)
+        flash('価格の更新に失敗しました', 'error')
+        return redirect(url_for('dashboard.dashboard'))
+
