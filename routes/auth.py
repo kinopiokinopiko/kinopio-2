@@ -8,7 +8,6 @@ auth_bp = Blueprint('auth', __name__)
 @auth_bp.route('/')
 def index():
     """ルートページ"""
-    # ✅ ログイン済みならダッシュボードへ、未ログインならログインページへ
     if 'user_id' in session:
         logger.info(f"✅ User {session.get('username')} already logged in, redirecting to dashboard")
         return redirect(url_for('dashboard.dashboard'))
@@ -19,7 +18,6 @@ def index():
 @auth_bp.route('/login', methods=['GET', 'POST'])
 def login():
     """ログインページ"""
-    # ✅ 既にログイン済みの場合はダッシュボードへリダイレクト
     if 'user_id' in session:
         logger.info(f"✅ User {session.get('username')} already logged in")
         return redirect(url_for('dashboard.dashboard'))
@@ -30,7 +28,6 @@ def login():
         
         logger.info(f"🔐 Login attempt for user: {username}")
         
-        # 入力検証
         if not username or not password:
             logger.warning(f"❌ Empty username or password")
             flash('ユーザー名とパスワードを入力してください', 'error')
@@ -41,10 +38,12 @@ def login():
                 c = conn.cursor()
                 logger.info(f"🔌 Using {'PostgreSQL' if db_manager.use_postgres else 'SQLite'} for login")
                 
-                # ユーザー検索
+                # ✅ 修正: データベースに応じてプレースホルダーを切り替え
                 if db_manager.use_postgres:
+                    logger.info(f"🔍 Searching user with PostgreSQL query")
                     c.execute('SELECT id, username, password_hash FROM users WHERE username = %s', (username,))
                 else:
+                    logger.info(f"🔍 Searching user with SQLite query")
                     c.execute('SELECT id, username, password_hash FROM users WHERE username = ?', (username,))
                 
                 user = c.fetchone()
@@ -55,14 +54,15 @@ def login():
                     user_password_hash = user['password_hash']
                     
                     logger.info(f"✅ User found: {user_username} (ID: {user_id})")
+                    logger.info(f"🔑 Password hash preview: {user_password_hash[:50]}...")
                     
                     # パスワード検証
                     if check_password_hash(user_password_hash, password):
                         logger.info(f"✅ Password verified for user: {user_username}")
-                        session.clear()  # ✅ 既存のセッションをクリア
+                        session.clear()
                         session['user_id'] = user_id
                         session['username'] = user_username
-                        session.permanent = True  # ✅ セッションを永続化
+                        session.permanent = True
                         logger.info(f"✅ Session created for user: {user_username}")
                         flash(f'{user_username}さん、ようこそ！', 'success')
                         return redirect(url_for('dashboard.dashboard'))
@@ -71,6 +71,17 @@ def login():
                         flash('ユーザー名またはパスワードが間違っています', 'error')
                 else:
                     logger.warning(f"❌ User not found: {username}")
+                    
+                    # ✅ デバッグ: 全ユーザーをリスト
+                    if db_manager.use_postgres:
+                        c.execute('SELECT username FROM users')
+                    else:
+                        c.execute('SELECT username FROM users')
+                    
+                    all_users = c.fetchall()
+                    usernames = [u['username'] for u in all_users]
+                    logger.info(f"📋 Available users: {usernames}")
+                    
                     flash('ユーザー名またはパスワードが間違っています', 'error')
         
         except Exception as e:
@@ -79,14 +90,12 @@ def login():
         
         return render_template('login.html')
     
-    # GET リクエスト
     logger.info("📄 Rendering login page")
     return render_template('login.html')
 
 @auth_bp.route('/register', methods=['GET', 'POST'])
 def register():
     """ユーザー登録ページ"""
-    # ✅ 既にログイン済みの場合はダッシュボードへリダイレクト
     if 'user_id' in session:
         return redirect(url_for('dashboard.dashboard'))
     
@@ -97,7 +106,6 @@ def register():
         
         logger.info(f"📝 Registration attempt for user: {username}")
         
-        # 入力検証
         if not username or not password or not password_confirm:
             flash('全ての項目を入力してください', 'error')
             return render_template('register.html')
@@ -118,7 +126,7 @@ def register():
             with db_manager.get_db() as conn:
                 c = conn.cursor()
                 
-                # ユーザー名の重複チェック
+                # ✅ 修正: データベースに応じてプレースホルダーを切り替え
                 if db_manager.use_postgres:
                     c.execute('SELECT id FROM users WHERE username = %s', (username,))
                 else:
@@ -133,7 +141,7 @@ def register():
                 password_hash = generate_password_hash(password)
                 logger.info(f"🔐 Generated hash preview: {password_hash[:50]}...")
                 
-                # ユーザー登録
+                # ✅ 修正: データベースに応じてプレースホルダーを切り替え
                 if db_manager.use_postgres:
                     c.execute('INSERT INTO users (username, password_hash) VALUES (%s, %s)',
                              (username, password_hash))
@@ -152,7 +160,6 @@ def register():
         
         return render_template('register.html')
     
-    # GET リクエスト
     return render_template('register.html')
 
 @auth_bp.route('/logout')
