@@ -48,6 +48,7 @@ class AssetService:
             with db_manager.get_db() as conn:
                 c = conn.cursor()
                 
+                # ✅ 修正: use_postgresを使ってプレースホルダーを切り替え
                 if self.use_postgres:
                     c.execute('SELECT * FROM assets WHERE user_id = %s', (user_id,))
                 else:
@@ -115,6 +116,7 @@ class AssetService:
             with db_manager.get_db() as conn:
                 c = conn.cursor()
                 
+                # ✅ 修正: use_postgresを使ってプレースホルダーを切り替え
                 if self.use_postgres:
                     c.execute('''SELECT jp_stock_value, us_stock_value, cash_value, 
                                         gold_value, crypto_value, investment_trust_value, 
@@ -165,6 +167,7 @@ class AssetService:
             with db_manager.get_db() as conn:
                 c = conn.cursor()
                 
+                # ✅ 修正: use_postgresを使ってプレースホルダーを切り替え
                 if self.use_postgres:
                     # PostgreSQLの場合：UPSERT（ON CONFLICT）
                     c.execute('''INSERT INTO asset_history 
@@ -222,6 +225,7 @@ class AssetService:
             with db_manager.get_db() as conn:
                 c = conn.cursor()
                 
+                # ✅ 修正: use_postgresを使ってプレースホルダーを切り替え
                 if self.use_postgres:
                     c.execute('SELECT total_value FROM asset_history WHERE user_id = %s AND record_date = %s',
                              (user_id, today))
@@ -278,12 +282,14 @@ class AssetService:
                 c = conn.cursor()
                 
                 asset_types_to_update = ['jp_stock', 'us_stock', 'gold', 'crypto', 'investment_trust']
-                query_placeholder = ', '.join(['%s'] * len(asset_types_to_update)) if self.use_postgres else ', '.join(['?'] * len(asset_types_to_update))
                 
+                # ✅ 修正: use_postgresを使ってプレースホルダーを切り替え
                 if self.use_postgres:
+                    query_placeholder = ', '.join(['%s'] * len(asset_types_to_update))
                     c.execute(f'SELECT id, symbol, asset_type FROM assets WHERE user_id = %s AND asset_type IN ({query_placeholder})',
                              [user_id] + asset_types_to_update)
                 else:
+                    query_placeholder = ', '.join(['?'] * len(asset_types_to_update))
                     c.execute(f'SELECT id, symbol, asset_type FROM assets WHERE user_id = ? AND asset_type IN ({query_placeholder})',
                              [user_id] + asset_types_to_update)
                 
@@ -305,6 +311,7 @@ class AssetService:
             with db_manager.get_db() as conn:
                 c = conn.cursor()
                 
+                # ✅ 修正: use_postgresを使ってプレースホルダーを切り替え
                 if self.use_postgres:
                     # PostgreSQLの場合：個別にUPDATE
                     for price_data in updated_prices:
