@@ -15,7 +15,7 @@ except ImportError:
     logger.warning("⚠️ psycopg2 not available, using SQLite")
 
 class DatabaseManager:
-    """データベース接続を管理"""
+    """データベース接続を管理（Neon PostgreSQL対応）"""
     
     def __init__(self, config=None):
         self.config = config or get_config()
@@ -30,17 +30,54 @@ class DatabaseManager:
             self._init_pool()
     
     def _init_pool(self):
-        """コネクションプール初期化"""
+        """コネクションプール初期化（Neon対応）"""
         if self.use_postgres and self.config.DATABASE_URL:
             try:
-                logger.info("🔌 Creating PostgreSQL connection pool...")
+                logger.info("🔌 Creating Neon PostgreSQL connection pool...")
+                
+                # ✅ Neon用の接続設定
+                import urllib.parse
+                
+                # DATABASE_URLをパース
+                result = urllib.parse.urlparse(self.config.DATABASE_URL)
+                
+                # 接続パラメータを構築
+                connection_params = {
+                    'user': result.username,
+                    'password': result.password,
+                    'host': result.hostname,
+                    'port': result.port or 5432,
+                    'database': result.path[1:],  # 先頭の "/" を除去
+                    'sslmode': 'require',  # ✅ Neonは必須
+                    'connect_timeout': 10,
+                    'keepalives': 1,
+                    'keepalives_idle': 30,
+                    'keepalives_interval': 10,
+                    'keepalives_count': 5,
+                    'options': '-c statement_timeout=30000'  # ✅ 30秒のタイムアウト
+                }
+                
+                logger.info(f"📊 Connecting to: {result.hostname}:{result.port or 5432}/{result.path[1:]}")
+                
                 self.pool = pg_pool.SimpleConnectionPool(
-                    1,  # minconn
-                    20, # maxconn
-                    self.config.DATABASE_URL,
-                    connect_timeout=10
+                    1,   # minconn - ✅ Neonは最小接続数を抑える
+                    10,  # maxconn - ✅ Neonの接続数制限に対応
+                    **connection_params
                 )
-                logger.info("✅ PostgreSQL connection pool initialized")
+                logger.info("✅ Neon PostgreSQL connection pool initialized")
+                
+                # ✅ 接続テスト
+                test_conn = self.pool.getconn()
+                try:
+                    cursor = test_conn.cursor()
+                    cursor.execute('SELECT version()')
+                    version = cursor.fetchone()[0]
+                    logger.info(f"✅ Database version: {version[:100]}...")
+                    cursor.close()
+                    test_conn.commit()
+                finally:
+                    self.pool.putconn(test_conn)
+                
             except Exception as e:
                 logger.error(f"❌ Failed to create connection pool: {e}", exc_info=True)
                 self.use_postgres = False
@@ -57,7 +94,7 @@ class DatabaseManager:
             return False
     
     def _get_connection_with_retry(self, max_retries=3):
-        """再接続処理付きでコネクションを取得"""
+        """再接続処理付きでコネクションを取得（Neon対応）"""
         last_error = None
         
         for attempt in range(max_retries):
@@ -68,7 +105,7 @@ class DatabaseManager:
                 # プールから接続を取得
                 conn = self.pool.getconn()
                 
-                # ✅ トランザクション状態をリセット（rollbackのみ）
+                # ✅ トランザクション状態をリセット
                 if conn.get_transaction_status() != extensions.TRANSACTION_STATUS_IDLE:
                     try:
                         conn.rollback()
@@ -84,7 +121,6 @@ class DatabaseManager:
                         pass
                     raise psycopg2.OperationalError("Connection test failed")
                 
-                # ✅ autocommit設定を削除（デフォルトのまま使用）
                 logger.debug(f"✅ Connection acquired on attempt {attempt + 1}")
                 return conn
             
@@ -121,14 +157,19 @@ class DatabaseManager:
     
     @contextmanager
     def get_db(self):
-        """データベース接続を取得（PostgreSQLは必ずRealDictCursorを使用）"""
+        """データベース接続を取得（Neon対応）"""
         if self.use_postgres:
             conn = None
             try:
                 # 再接続処理付きで接続取得
                 conn = self._get_connection_with_retry()
                 
-                # ✅ RealDictCursor用のカスタムコネクションクラス
+                # ✅ 短いタイムアウトを設定（Neon対応）
+                cursor = conn.cursor()
+                cursor.execute('SET statement_timeout = 30000')  # 30秒
+                cursor.close()
+                
+                # ✅ RealDictCursor用のラッパー
                 class DictConnection:
                     """RealDictCursorを常に返すラッパー"""
                     def __init__(self, real_conn, manager):
@@ -180,7 +221,7 @@ class DatabaseManager:
                         return False
                 
                 wrapped_conn = DictConnection(conn, self)
-                logger.debug("✅ PostgreSQL connection with RealDictCursor wrapper")
+                logger.debug("✅ Neon PostgreSQL connection with RealDictCursor wrapper")
                 
                 yield wrapped_conn
                 
@@ -205,7 +246,7 @@ class DatabaseManager:
             finally:
                 if conn:
                     try:
-                        # プールに接続を返却
+                        # ✅ プールに接続を返却
                         if self.pool:
                             self.pool.putconn(conn)
                             logger.debug("✅ Connection returned to pool")
