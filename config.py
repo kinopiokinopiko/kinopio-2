@@ -11,7 +11,7 @@ class Config:
     FLASK_ENV = os.environ.get('FLASK_ENV', 'development')
     
     # ✅ セッション設定を強化
-    PERMANENT_SESSION_LIFETIME = timedelta(days=7)
+    PERMANENT_SESSION_LIFETIME = timedelta(days=1)
     SESSION_COOKIE_SECURE = FLASK_ENV == 'production'
     SESSION_COOKIE_HTTPONLY = True
     SESSION_COOKIE_SAMESITE = 'Lax'
@@ -74,3 +74,4 @@ def get_config():
     """環境に応じた設定を取得"""
     env = os.environ.get('FLASK_ENV', 'development')
     return config_by_env.get(env, DevelopmentConfig)
+
