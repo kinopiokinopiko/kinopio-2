@@ -36,7 +36,6 @@ env/
 *.db
 *.sqlite
 *.sqlite3
-portfolio.db
 
 # Environment variables
 .env
