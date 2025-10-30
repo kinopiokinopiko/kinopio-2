@@ -9,3 +9,4 @@ httpx
 hypercorn
 APScheduler==3.10.4
 pytz
+urllib3>=1.26.0
