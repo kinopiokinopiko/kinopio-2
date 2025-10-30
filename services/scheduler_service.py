@@ -9,12 +9,8 @@ from models import db_manager
 from .asset_service import asset_service
 from config import get_config
 
-# ================================================================================
-# ⏰ スケジューラー関連
-# ================================================================================
-
 class SchedulerManager:
-    """スケジューラーを管理"""
+    """スケジューラーを管理（Neon対応）"""
     
     def __init__(self):
         self.scheduler = BackgroundScheduler(timezone='Asia/Tokyo')
@@ -23,17 +19,15 @@ class SchedulerManager:
         self.session = requests.Session()
     
     def scheduled_update_all_prices(self):
-        """スケジュール実行: 全ユーザーの資産価格を更新"""
+        """スケジュール実行: 全ユーザーの資産価格を更新（Neon対応）"""
         try:
             logger.info("=" * 80)
             logger.info("🔄 SCHEDULED TASK STARTED: Price update for all users")
             logger.info(f"⏰ Timestamp: {time.strftime('%Y-%m-%d %H:%M:%S JST')}")
             logger.info("=" * 80)
             
-            with db_manager.get_db() as conn:
-                c = conn.cursor()
-                c.execute('SELECT id, username FROM users')
-                users = c.fetchall()
+            # ✅ Step 1: ユーザーリストを取得（短いトランザクション）
+            users = self._fetch_all_users()
             
             if not users:
                 logger.warning("⚠️ No users found in database")
@@ -54,19 +48,25 @@ class SchedulerManager:
                     logger.info(f"👤 Processing user: {username} (ID: {user_id})")
                     logger.info(f"─" * 60)
                     
-                    # ステップ1: 価格更新
+                    # ✅ Step 1: 価格更新（複数の短いトランザクション）
                     logger.info(f"📊 Step 1/2: Updating prices for user {username}...")
                     updated_count = asset_service.update_user_prices(user_id)
                     total_updated += updated_count
                     logger.info(f"✅ Step 1 completed: {updated_count} assets updated")
                     
-                    # ステップ2: スナップショット記録
+                    # ✅ 少し待機（Neonの負荷分散）
+                    time.sleep(1)
+                    
+                    # ✅ Step 2: スナップショット記録（複数の短いトランザクション）
                     logger.info(f"📸 Step 2/2: Recording snapshot for user {username}...")
                     asset_service.record_asset_snapshot(user_id)
                     logger.info(f"✅ Step 2 completed: Snapshot recorded")
                     
                     success_count += 1
                     logger.info(f"✅ User {username} processed successfully")
+                    
+                    # ✅ ユーザー間で少し待機（Neonの負荷分散）
+                    time.sleep(2)
                     
                 except Exception as user_error:
                     failed_users.append((username, str(user_error)))
@@ -91,6 +91,18 @@ class SchedulerManager:
             logger.error("=" * 80)
             logger.error(f"❌ CRITICAL ERROR in scheduled_update_all_prices: {e}", exc_info=True)
             logger.error("=" * 80)
+    
+    def _fetch_all_users(self):
+        """全ユーザーを取得（短いトランザクション）"""
+        try:
+            with db_manager.get_db() as conn:
+                c = conn.cursor()
+                c.execute('SELECT id, username FROM users')
+                users = c.fetchall()
+                return [dict(user) for user in users]
+        except Exception as e:
+            logger.error(f"❌ Error fetching users: {e}", exc_info=True)
+            return []
     
     def _self_ping(self):
         """定期的に自身にpingを送信してスリープを防止"""
@@ -137,7 +149,7 @@ class SchedulerManager:
             replace_existing=True,
             coalesce=True,
             max_instances=1,
-            misfire_grace_time=300  # ✅ 5分以内の遅延を許容
+            misfire_grace_time=600  # ✅ 10分以内の遅延を許容（Neon対応）
         )
         
         # ✅ 5分ごとにself-pingを送信（スリープ防止）
@@ -157,7 +169,7 @@ class SchedulerManager:
             logger.info("✅ SCHEDULER STARTED SUCCESSFULLY")
             logger.info("📅 Daily price update scheduled for 23:58 JST")
             logger.info("📡 Self-ping scheduled every 5 minutes")
-            logger.info(f"🔧 Database: {'PostgreSQL' if self.use_postgres else 'SQLite'}")
+            logger.info(f"🔧 Database: {'Neon PostgreSQL' if self.use_postgres else 'SQLite'}")
             logger.info("=" * 80)
         except Exception as e:
             logger.error(f"❌ Failed to start scheduler: {e}", exc_info=True)
@@ -187,7 +199,6 @@ class KeepAliveManager:
             logger.info("ℹ️ Set RENDER_EXTERNAL_URL environment variable on Render dashboard")
             return
         
-        # URLの末尾のスラッシュを削除
         app_url = app_url.rstrip('/')
         ping_url = f"{app_url}/ping"
         
@@ -229,11 +240,9 @@ class KeepAliveManager:
     
     def start_thread(self):
         """Keep-Alive スレッドを開始"""
-        # Render環境でのみ実行
         if os.environ.get('RENDER'):
             logger.info("🌐 Running on Render, starting keep-alive thread...")
             
-            # 既に実行中の場合はスキップ
             if self.running:
                 logger.info("ℹ️ Keep-alive thread already running")
                 return
@@ -244,7 +253,6 @@ class KeepAliveManager:
             logger.info("✅ Keep-alive thread started successfully (5-minute interval)")
         else:
             logger.info("ℹ️ Not running on Render, keep-alive thread will not start")
-            logger.info("ℹ️ (This is normal for local development)")
     
     def stop(self):
         """Keep-Alive スレッドを停止"""
