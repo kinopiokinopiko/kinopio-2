@@ -1,6 +1,6 @@
 from flask import Blueprint, render_template, request, redirect, url_for, session, flash, jsonify
 from models import db_manager
-from services import price_service
+from services import price_service, asset_service  # ✅ asset_service を追加
 from utils import logger, constants
 import json
 
@@ -422,7 +422,7 @@ def delete_asset():
 
 @assets_bp.route('/update_prices', methods=['POST'])
 def update_prices():
-    """特定資産タイプの価格を更新"""
+    """特定資産タイプの価格を更新 + スナップショット保存"""
     user = get_current_user()
     if not user:
         flash('ログインしてください', 'error')
@@ -432,6 +432,8 @@ def update_prices():
     asset_type = request.form.get('asset_type')
     
     try:
+        logger.info(f"🔄 === Starting price update for {asset_type} (user {user_id}) ===")
+        
         with db_manager.get_db() as conn:
             c = conn.cursor()
             
@@ -482,7 +484,17 @@ def update_prices():
             
             conn.commit()
         
-        logger.info(f"✅ Updated {len(updated_prices)} prices for user {user_id}")
+        logger.info(f"✅ Updated {len(updated_prices)} prices for {asset_type}")
+        
+        # ✅ 価格更新後に当日のスナップショットを保存
+        try:
+            logger.info(f"📸 Saving snapshot after price update...")
+            asset_service.record_asset_snapshot(user_id)
+            logger.info(f"✅ Snapshot saved successfully")
+        except Exception as snapshot_error:
+            logger.error(f"❌ Failed to save snapshot: {snapshot_error}", exc_info=True)
+            # スナップショット保存に失敗しても価格更新は成功とする
+        
         flash(f'{len(updated_prices)}件の価格を更新しました', 'success')
         return redirect(url_for('assets.manage_assets', asset_type=asset_type))
     
@@ -493,7 +505,7 @@ def update_prices():
 
 @assets_bp.route('/update_all_prices', methods=['POST'])
 def update_all_prices():
-    """全資産の価格を更新"""
+    """全資産の価格を更新 + スナップショット保存"""
     user = get_current_user()
     if not user:
         flash('ログインしてください', 'error')
@@ -502,6 +514,8 @@ def update_all_prices():
     user_id = user['id']
     
     try:
+        logger.info(f"🔄 === Starting update all prices (user {user_id}) ===")
+        
         with db_manager.get_db() as conn:
             c = conn.cursor()
             
@@ -557,8 +571,18 @@ def update_all_prices():
             
             conn.commit()
         
-        logger.info(f"✅ Updated all prices ({len(updated_prices)} assets) for user {user_id}")
-        flash(f'{len(updated_prices)}件の価格を更新しました', 'success')
+        logger.info(f"✅ Updated all prices ({len(updated_prices)} assets)")
+        
+        # ✅ 価格更新後に当日のスナップショットを保存
+        try:
+            logger.info(f"📸 Saving snapshot after price update...")
+            asset_service.record_asset_snapshot(user_id)
+            logger.info(f"✅ Snapshot saved successfully")
+            flash(f'{len(updated_prices)}件の価格を更新し、スナップショットを保存しました', 'success')
+        except Exception as snapshot_error:
+            logger.error(f"❌ Failed to save snapshot: {snapshot_error}", exc_info=True)
+            flash(f'{len(updated_prices)}件の価格を更新しました（スナップショット保存に失敗）', 'warning')
+        
         return redirect(url_for('dashboard.dashboard'))
     
     except Exception as e:
