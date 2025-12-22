@@ -21,15 +21,25 @@ class DatabaseManager:
     def __init__(self, config=None):
         self.config = config or get_config()
         self.pool = None
-        self.use_postgres = self.config.USE_POSTGRES and POSTGRES_AVAILABLE
-        
+        # Render環境かどうかの判定
         self.is_render = os.environ.get('RENDER') is not None
+        
+        # PostgreSQLを使用するかどうかの判定
+        self.use_postgres = self.config.USE_POSTGRES and POSTGRES_AVAILABLE
         
         logger.info(f"🔧 DatabaseManager initializing...")
         logger.info(f"🌐 Environment: {'Render' if self.is_render else 'Local'}")
         logger.info(f"📊 USE_POSTGRES: {self.use_postgres}")
-        logger.info(f"📊 DATABASE_URL: {self.config.DATABASE_URL[:50] if self.config.DATABASE_URL else 'None'}...")
         
+        # DB URLのログ出力（パスワード漏洩防止のため一部伏せ字）
+        db_url = self.config.DATABASE_URL
+        if db_url:
+            masked_url = db_url.split('@')[-1] if '@' in db_url else '***'
+            logger.info(f"📊 DATABASE_URL provided (host: {masked_url})")
+        else:
+            logger.info("📊 DATABASE_URL: None")
+        
+        # Render環境での構成チェック
         if self.is_render and not self.use_postgres:
             error_msg = (
                 "❌ CRITICAL ERROR: Render environment must use PostgreSQL!\n"
@@ -45,25 +55,31 @@ class DatabaseManager:
             self._init_pool()
     
     def _init_pool(self):
-    """コネクションプール初期化（Neon PostgreSQL最適化版）"""
-    if self.use_postgres and self.config.DATABASE_URL:
-        try:
-            logger.info("🔌 Creating PostgreSQL connection pool (Neon optimized)...")
-            self.pool = pg_pool.SimpleConnectionPool(
-                1,   # minconn（Neon推奨）
-                10,  # maxconn（Neon推奨）
-                self.config.DATABASE_URL,
-                connect_timeout=30,           # タイムアウト延長
-                keepalives=1,                 # Keep-alive有効化
-                keepalives_idle=30,           # アイドル30秒後にKA送信
-                keepalives_interval=10,       # KA間隔10秒
-                keepalives_count=5            # KA失敗5回で切断
-            )
-            logger.info("✅ PostgreSQL connection pool initialized (Neon optimized)")
-        except Exception as e:
-            logger.error(f"❌ Failed to create connection pool: {e}", exc_info=True)
-            self.use_postgres = False
-            logger.info("⚠️ Falling back to SQLite")
+        """コネクションプール初期化（Neon PostgreSQL最適化版）"""
+        # ✅ 修正: 以前のコードでここがインデントエラーになっていました
+        if self.use_postgres and self.config.DATABASE_URL:
+            try:
+                logger.info("🔌 Creating PostgreSQL connection pool (Neon optimized)...")
+                # SimpleConnectionPoolを使用（スレッドセーフなアプリケーション構成を前提）
+                self.pool = pg_pool.SimpleConnectionPool(
+                    minconn=1,
+                    maxconn=10,
+                    dsn=self.config.DATABASE_URL,
+                    sslmode='require',            # Render/Neonでは必須
+                    connect_timeout=30,           # タイムアウト延長
+                    keepalives=1,                 # Keep-alive有効化
+                    keepalives_idle=30,           # アイドル30秒後にKA送信
+                    keepalives_interval=10,       # KA間隔10秒
+                    keepalives_count=5            # KA失敗5回で切断
+                )
+                logger.info("✅ PostgreSQL connection pool initialized (Neon optimized)")
+            except Exception as e:
+                logger.error(f"❌ Failed to create connection pool: {e}", exc_info=True)
+                # Render環境ではここで落とす
+                if self.is_render:
+                    raise RuntimeError(f"Failed to initialize PostgreSQL pool: {e}")
+                self.use_postgres = False
+                logger.info("⚠️ Falling back to SQLite")
     
     def _test_connection(self, conn):
         """接続が有効かテスト"""
@@ -86,12 +102,14 @@ class DatabaseManager:
                 
                 conn = self.pool.getconn()
                 
-                if conn.get_transaction_status() != extensions.TRANSACTION_STATUS_IDLE:
+                # トランザクション状態の確認とリセット
+                if conn.status != extensions.TRANSACTION_STATUS_IDLE:
                     try:
                         conn.rollback()
                     except Exception as e:
                         logger.warning(f"⚠️ Rollback during connection reset: {e}")
                 
+                # 接続テスト
                 if not self._test_connection(conn):
                     logger.warning(f"⚠️ Connection test failed on attempt {attempt + 1}")
                     try:
@@ -133,20 +151,20 @@ class DatabaseManager:
     
     @contextmanager
     def get_db(self):
-        """データベース接続を取得（Neon Pooler対応）"""
+        """データベース接続を取得（辞書形式カーソル対応）"""
         if self.use_postgres:
             conn = None
             try:
                 conn = self._get_connection_with_retry()
                 
-                # ✅ 接続後にstatement_timeoutを設定（Neon Poolerでも動作）
+                # タイムアウト設定（オプション）
                 try:
-                    cursor = conn.cursor()
-                    cursor.execute('SET statement_timeout = 30000')
-                    cursor.close()
-                except Exception as timeout_error:
-                    logger.warning(f"⚠️ Could not set statement_timeout: {timeout_error}")
-                
+                    with conn.cursor() as cur:
+                        cur.execute('SET statement_timeout = 30000')
+                except Exception as e:
+                    logger.warning(f"⚠️ Could not set statement_timeout: {e}")
+
+                # 辞書形式でデータを取得するためのラッパークラス
                 class DictConnection:
                     def __init__(self, real_conn, manager):
                         self._conn = real_conn
@@ -156,24 +174,19 @@ class DatabaseManager:
                     def cursor(self, *args, **kwargs):
                         if self._closed:
                             raise psycopg2.InterfaceError("Connection already closed")
+                        # RealDictCursorを強制使用
                         return self._conn.cursor(cursor_factory=RealDictCursor)
                     
                     def commit(self):
                         if not self._closed:
-                            try:
-                                return self._conn.commit()
-                            except Exception as e:
-                                logger.error(f"❌ Commit error: {e}")
-                                raise
+                            return self._conn.commit()
                     
                     def rollback(self):
                         if not self._closed:
-                            try:
-                                return self._conn.rollback()
-                            except Exception as e:
-                                logger.warning(f"⚠️ Rollback error: {e}")
+                            return self._conn.rollback()
                     
                     def close(self):
+                        # ここでは論理的に閉じるだけ
                         if not self._closed:
                             self._closed = True
                     
@@ -181,33 +194,17 @@ class DatabaseManager:
                         return self
                     
                     def __exit__(self, exc_type, exc_val, exc_tb):
+                        # コンテキスト終了時にコミットまたはロールバック
                         if exc_type:
-                            try:
-                                self.rollback()
-                            except Exception as e:
-                                logger.warning(f"⚠️ Error during rollback in __exit__: {e}")
+                            self.rollback()
                         else:
-                            try:
-                                self.commit()
-                            except Exception as e:
-                                logger.error(f"❌ Error during commit in __exit__: {e}")
+                            self.commit()
                         self.close()
                         return False
                 
                 wrapped_conn = DictConnection(conn, self)
-                logger.debug("✅ PostgreSQL connection with RealDictCursor wrapper")
-                
                 yield wrapped_conn
                 
-            except (psycopg2.OperationalError, psycopg2.InterfaceError) as e:
-                logger.error(f"❌ Database connection error: {e}", exc_info=True)
-                if conn:
-                    try:
-                        conn.rollback()
-                    except Exception:
-                        pass
-                raise
-            
             except Exception as e:
                 logger.error(f"❌ Database error: {e}", exc_info=True)
                 if conn:
@@ -218,14 +215,14 @@ class DatabaseManager:
                 raise
             
             finally:
-                if conn:
+                if conn and self.pool:
                     try:
-                        if self.pool:
-                            self.pool.putconn(conn)
-                            logger.debug("✅ Connection returned to pool")
+                        self.pool.putconn(conn)
+                        logger.debug("✅ Connection returned to pool")
                     except Exception as e:
                         logger.error(f"❌ Error returning connection to pool: {e}")
         else:
+            # SQLite (ローカル環境用)
             if self.is_render:
                 error_msg = "❌ SQLite cannot be used in Render environment!"
                 logger.error(error_msg)
@@ -286,6 +283,7 @@ class DatabaseManager:
         try:
             logger.info("✅ Creating PostgreSQL tables...")
             
+            # ユーザーテーブル
             cursor.execute('''CREATE TABLE IF NOT EXISTS users (
                 id SERIAL PRIMARY KEY,
                 username VARCHAR(255) UNIQUE NOT NULL,
@@ -293,6 +291,7 @@ class DatabaseManager:
                 created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
             )''')
             
+            # 資産テーブル（avg_cost, price, name追加済み）
             cursor.execute('''CREATE TABLE IF NOT EXISTS assets (
                 id SERIAL PRIMARY KEY,
                 user_id INTEGER NOT NULL,
@@ -306,6 +305,7 @@ class DatabaseManager:
                 FOREIGN KEY (user_id) REFERENCES users (id) ON DELETE CASCADE
             )''')
             
+            # 履歴テーブル（UPSERT対応のためUNIQUE制約を追加）
             cursor.execute('''CREATE TABLE IF NOT EXISTS asset_history (
                 id SERIAL PRIMARY KEY,
                 user_id INTEGER NOT NULL,
@@ -328,9 +328,10 @@ class DatabaseManager:
                 prev_total_value DOUBLE PRECISION DEFAULT 0,
                 created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
                 FOREIGN KEY (user_id) REFERENCES users (id) ON DELETE CASCADE,
-                UNIQUE(user_id, record_date)
+                CONSTRAINT unique_user_date UNIQUE (user_id, record_date)
             )''')
             
+            # インデックス作成
             cursor.execute('CREATE INDEX IF NOT EXISTS idx_assets_user_id ON assets(user_id)')
             cursor.execute('CREATE INDEX IF NOT EXISTS idx_assets_user_type ON assets(user_id, asset_type)')
             cursor.execute('CREATE INDEX IF NOT EXISTS idx_asset_history_user_id ON asset_history(user_id)')
@@ -338,6 +339,7 @@ class DatabaseManager:
             
             logger.info("✅ PostgreSQL tables created")
             
+            # デモユーザー作成
             from werkzeug.security import generate_password_hash
             
             cursor.execute("SELECT id, username FROM users WHERE username = %s", ('demo',))
@@ -350,7 +352,7 @@ class DatabaseManager:
                              ('demo', demo_hash))
                 logger.info("✅ Demo user created: demo/demo123")
             else:
-                logger.info(f"ℹ️ Demo user already exists (ID: {existing_demo['id']})")
+                logger.info(f"ℹ️ Demo user already exists")
             
             logger.info("✅ PostgreSQL database initialized successfully")
         
@@ -359,7 +361,7 @@ class DatabaseManager:
             raise
     
     def _init_sqlite(self, cursor, conn):
-        """SQLite テーブル作成（ローカル環境のみ）"""
+        """SQLite テーブル作成（ローカル環境用）"""
         try:
             logger.info("✅ Creating SQLite tables...")
             
@@ -439,4 +441,3 @@ class DatabaseManager:
 
 # グローバルデータベースマネージャー
 db_manager = DatabaseManager()
-
