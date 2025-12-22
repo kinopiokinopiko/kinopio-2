@@ -470,3 +470,5 @@ def update_all_prices():
         logger.error(f"❌ Error updating all prices: {e}", exc_info=True)
         flash('価格の更新に失敗しました', 'error')
         return redirect(url_for('dashboard.dashboard'))
+        asset_service.record_asset_snapshot(user['id'])
+
