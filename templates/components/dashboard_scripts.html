@@ -28,7 +28,7 @@ Chart.register(ChartDataLabels);
 document.addEventListener('DOMContentLoaded', function() {
     const chartDataJSON = '{{ chart_data | safe }}';
     const historyDataJSON = '{{ history_data | safe }}';
-    let myLineChart, myBarChart; 
+    let myLineChart; // ❌ 削除: myBarChart
 
     const assetColors = [
         '#E63946', '#457B9D', '#F4A261', '#E9C46A', 
@@ -160,49 +160,7 @@ document.addEventListener('DOMContentLoaded', function() {
                     }
                 });
 
-                const ctxHistory = document.getElementById('assetHistoryChart').getContext('2d');
-                const barThicknessOptions = {
-                    barPercentage: 0.2,
-                    categoryPercentage: 0.5
-                };
-                myBarChart = new Chart(ctxHistory, {
-                    type: 'bar',
-                    data: {
-                        labels: historyData.dates,
-                        datasets: [
-                            { label: '日本株', data: historyData.jp_stock, backgroundColor: assetColors[0], ...barThicknessOptions },
-                            { label: '米国株', data: historyData.us_stock, backgroundColor: assetColors[1], ...barThicknessOptions },
-                            { label: '現金', data: historyData.cash, backgroundColor: assetColors[2], ...barThicknessOptions },
-                            { label: '金', data: historyData.gold, backgroundColor: assetColors[3], ...barThicknessOptions },
-                            { label: '暗号資産', data: historyData.crypto, backgroundColor: assetColors[4], ...barThicknessOptions },
-                            { label: '投資信託', data: historyData.investment_trust, backgroundColor: assetColors[5], ...barThicknessOptions },
-                            { label: '保険', data: historyData.insurance, backgroundColor: assetColors[6], ...barThicknessOptions }
-                        ]
-                    },
-                    options: {
-                        responsive: true,
-                        maintainAspectRatio: false,
-                        plugins: {
-                            title: { display: false },
-                            tooltip: { mode: 'index', intersect: false },
-                            legend: { display: false },
-                            datalabels: { display: false }
-                        },
-                        scales: {
-                            x: { stacked: true },
-                            y: {
-                                stacked: true,
-                                ticks: {
-                                    callback: function(value) {
-                                        if (value >= 100000000) return '¥' + (value / 100000000).toFixed(1) + '億';
-                                        if (value >= 10000) return '¥' + (value / 10000).toLocaleString() + '万';
-                                        return '¥' + value.toLocaleString();
-                                    }
-                                }
-                            }
-                        }
-                    }
-                });
+                // ❌ 削除: myBarChartの生成処理
 
                 const lineToggles = document.querySelectorAll('.line-toggle');
                 const updateLineVisuals = () => {
@@ -231,40 +189,15 @@ document.addEventListener('DOMContentLoaded', function() {
                 });
                 updateLineVisuals();
 
-                const barToggles = document.querySelectorAll('.bar-toggle');
-                const updateBarVisuals = () => {
-                    barToggles.forEach(toggle => {
-                        const colorBox = toggle.nextElementSibling;
-                        if (colorBox) colorBox.style.opacity = toggle.checked ? '1.0' : '0.4';
-                    });
-                };
-                document.getElementById('toggle-all-bars').addEventListener('change', (e) => {
-                    const isChecked = e.target.checked;
-                    barToggles.forEach(toggle => {
-                        toggle.checked = isChecked;
-                        const index = toggle.getAttribute('data-dataset-index');
-                        myBarChart.getDatasetMeta(parseInt(index)).hidden = !isChecked;
-                    });
-                    myBarChart.update();
-                    updateBarVisuals();
-                });
-                barToggles.forEach(toggle => {
-                    toggle.addEventListener('change', () => {
-                        const index = toggle.getAttribute('data-dataset-index');
-                        myBarChart.getDatasetMeta(parseInt(index)).hidden = !toggle.checked;
-                        myBarChart.update();
-                        updateBarVisuals();
-                    });
-                });
-                updateBarVisuals();
+                // ❌ 削除: 棒グラフのトグルイベントリスナー
             }
         } catch (e) { console.error("History chart error:", e); }
     }
     
+    // 初期タブ表示の処理
     const portfolioButton = document.querySelector('.tab-nav .tab-btn.active');
     if (portfolioButton) {
         showTab('portfolio', portfolioButton);
     }
 });
 </script>
-
