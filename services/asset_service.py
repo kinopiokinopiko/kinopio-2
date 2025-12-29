@@ -1,4 +1,5 @@
 from datetime import datetime, timezone, timedelta
+import time
 from utils import logger
 from models import db_manager
 from config import get_config
@@ -16,114 +17,110 @@ class AssetService:
         self.use_postgres = self.config.USE_POSTGRES
     
     def record_asset_snapshot(self, user_id):
-        """現在の資産状況をスナップショットとして記録（前日比を含む）"""
-        try:
-            logger.info(f"📸 === Starting asset snapshot for user {user_id} ===")
-            
-            with db_manager.get_db() as conn:
-                # PostgreSQL/SQLiteの統一インターフェース
-                if self.use_postgres:
-                    from psycopg2.extras import RealDictCursor
-                    c = conn.cursor(cursor_factory=RealDictCursor)
-                else:
-                    c = conn.cursor()
+        """現在の資産状況をスナップショットとして記録（前日比を含む） - リトライ機能付き"""
+        
+        max_retries = 3
+        retry_delay = 1.0 # 秒
+        
+        for attempt in range(max_retries):
+            try:
+                logger.info(f"📸 === Starting asset snapshot for user {user_id} (Attempt {attempt+1}/{max_retries}) ===")
                 
-                jst = timezone(timedelta(hours=9))
-                today = datetime.now(jst).date()
-                yesterday = today - timedelta(days=1)
-                
-                logger.info(f"📅 Recording snapshot for date: {today}")
-                logger.info(f"📅 Yesterday's date: {yesterday}")
-                
-                asset_types = ['jp_stock', 'us_stock', 'cash', 'gold', 'crypto', 'investment_trust', 'insurance']
-                values = {}
-                
-                # ✅ 修正: USD/JPYレートを取得
-                try:
-                    usd_jpy = price_service.get_usd_jpy_rate()
-                    logger.info(f"💱 USD/JPY rate: {usd_jpy}")
-                except Exception as e:
-                    logger.warning(f"⚠️ Failed to get USD/JPY rate: {e}")
-                    usd_jpy = 150.0
-                
-                # 当日の資産値を計算
-                for asset_type in asset_types:
+                with db_manager.get_db() as conn:
+                    # PostgreSQL/SQLiteの統一インターフェース
                     if self.use_postgres:
-                        c.execute('SELECT * FROM assets WHERE user_id = %s AND asset_type = %s',
-                                 (user_id, asset_type))
+                        from psycopg2.extras import RealDictCursor
+                        c = conn.cursor(cursor_factory=RealDictCursor)
                     else:
-                        c.execute('SELECT * FROM assets WHERE user_id = ? AND asset_type = ?',
-                                 (user_id, asset_type))
-                    assets = c.fetchall()
+                        c = conn.cursor()
                     
-                    total = 0
-                    if asset_type == 'us_stock':
-                        total = sum(float(a['quantity'] or 0) * float(a['price'] or 0) for a in assets) * usd_jpy
-                    elif asset_type == 'investment_trust':
-                        total = sum((float(a['quantity'] or 0) * float(a['price'] or 0) / 10000) for a in assets)
-                    elif asset_type == 'insurance':
-                        total = sum(float(a['price'] or 0) for a in assets)
-                    elif asset_type == 'cash':
-                        total = sum(float(a['quantity'] or 0) for a in assets)
+                    jst = timezone(timedelta(hours=9))
+                    today = datetime.now(jst).date()
+                    yesterday = today - timedelta(days=1)
+                    
+                    logger.info(f"📅 Recording snapshot for date: {today}")
+                    
+                    asset_types = ['jp_stock', 'us_stock', 'cash', 'gold', 'crypto', 'investment_trust', 'insurance']
+                    values = {}
+                    
+                    # USD/JPYレートを取得
+                    try:
+                        usd_jpy = price_service.get_usd_jpy_rate()
+                    except Exception as e:
+                        logger.warning(f"⚠️ Failed to get USD/JPY rate: {e}")
+                        usd_jpy = 150.0
+                    
+                    # 当日の資産値を計算
+                    for asset_type in asset_types:
+                        if self.use_postgres:
+                            c.execute('SELECT * FROM assets WHERE user_id = %s AND asset_type = %s',
+                                     (user_id, asset_type))
+                        else:
+                            c.execute('SELECT * FROM assets WHERE user_id = ? AND asset_type = ?',
+                                     (user_id, asset_type))
+                        assets = c.fetchall()
+                        
+                        total = 0
+                        if asset_type == 'us_stock':
+                            total = sum(float(a['quantity'] or 0) * float(a['price'] or 0) for a in assets) * usd_jpy
+                        elif asset_type == 'investment_trust':
+                            total = sum((float(a['quantity'] or 0) * float(a['price'] or 0) / 10000) for a in assets)
+                        elif asset_type == 'insurance':
+                            total = sum(float(a['price'] or 0) for a in assets)
+                        elif asset_type == 'cash':
+                            total = sum(float(a['quantity'] or 0) for a in assets)
+                        else:
+                            total = sum(float(a['quantity'] or 0) * float(a['price'] or 0) for a in assets)
+                        
+                        values[asset_type] = total
+                    
+                    total_value = sum(values.values())
+                    
+                    # 昨日のスナップショットを取得（前日の値として使用）
+                    if self.use_postgres:
+                        c.execute('''SELECT jp_stock_value, us_stock_value, cash_value, 
+                                            gold_value, crypto_value, investment_trust_value, 
+                                            insurance_value, total_value 
+                                    FROM asset_history 
+                                    WHERE user_id = %s AND record_date = %s''',
+                                 (user_id, yesterday))
                     else:
-                        total = sum(float(a['quantity'] or 0) * float(a['price'] or 0) for a in assets)
+                        c.execute('''SELECT jp_stock_value, us_stock_value, cash_value, 
+                                            gold_value, crypto_value, investment_trust_value, 
+                                            insurance_value, total_value 
+                                    FROM asset_history 
+                                    WHERE user_id = ? AND record_date = ?''',
+                                 (user_id, yesterday))
                     
-                    values[asset_type] = total
-                    logger.info(f"  📊 {asset_type}: ¥{total:,.2f}")
-                
-                total_value = sum(values.values())
-                logger.info(f"  💰 Total: ¥{total_value:,.2f}")
-                
-                # ✅ 修正: 昨日のスナップショットを取得（前日の値として使用）
-                if self.use_postgres:
-                    c.execute('''SELECT jp_stock_value, us_stock_value, cash_value, 
-                                        gold_value, crypto_value, investment_trust_value, 
-                                        insurance_value, total_value 
-                                FROM asset_history 
-                                WHERE user_id = %s AND record_date = %s''',
-                             (user_id, yesterday))
-                else:
-                    c.execute('''SELECT jp_stock_value, us_stock_value, cash_value, 
-                                        gold_value, crypto_value, investment_trust_value, 
-                                        insurance_value, total_value 
-                                FROM asset_history 
-                                WHERE user_id = ? AND record_date = ?''',
-                             (user_id, yesterday))
-                
-                yesterday_record = c.fetchone()
-                
-                # 前日のデータがある場合はそれを使用、ない場合は0
-                if yesterday_record:
-                    prev_values = {
-                        'jp_stock': float(yesterday_record['jp_stock_value'] or 0),
-                        'us_stock': float(yesterday_record['us_stock_value'] or 0),
-                        'cash': float(yesterday_record['cash_value'] or 0),
-                        'gold': float(yesterday_record['gold_value'] or 0),
-                        'crypto': float(yesterday_record['crypto_value'] or 0),
-                        'investment_trust': float(yesterday_record['investment_trust_value'] or 0),
-                        'insurance': float(yesterday_record['insurance_value'] or 0),
-                    }
-                    prev_total_value = float(yesterday_record['total_value'] or 0)
-                    logger.info(f"📅 Yesterday's data found: Total ¥{prev_total_value:,.2f}")
-                else:
-                    # 前日のデータがない場合は、今日のデータを前日の値としても使用（初回記録時）
-                    prev_values = {
-                        'jp_stock': values['jp_stock'],
-                        'us_stock': values['us_stock'],
-                        'cash': values['cash'],
-                        'gold': values['gold'],
-                        'crypto': values['crypto'],
-                        'investment_trust': values['investment_trust'],
-                        'insurance': values['insurance'],
-                    }
-                    prev_total_value = total_value
-                    logger.info(f"⚠️ No yesterday data found, using current values as previous")
-                
-                # ✅ 修正: 当日のスナップショットを保存または更新（PostgreSQL対応）
-                try:
+                    yesterday_record = c.fetchone()
+                    
+                    # 前日のデータがある場合はそれを使用、ない場合は0
+                    if yesterday_record:
+                        prev_values = {
+                            'jp_stock': float(yesterday_record['jp_stock_value'] or 0),
+                            'us_stock': float(yesterday_record['us_stock_value'] or 0),
+                            'cash': float(yesterday_record['cash_value'] or 0),
+                            'gold': float(yesterday_record['gold_value'] or 0),
+                            'crypto': float(yesterday_record['crypto_value'] or 0),
+                            'investment_trust': float(yesterday_record['investment_trust_value'] or 0),
+                            'insurance': float(yesterday_record['insurance_value'] or 0),
+                        }
+                        prev_total_value = float(yesterday_record['total_value'] or 0)
+                    else:
+                        prev_values = {
+                            'jp_stock': values['jp_stock'],
+                            'us_stock': values['us_stock'],
+                            'cash': values['cash'],
+                            'gold': values['gold'],
+                            'crypto': values['crypto'],
+                            'investment_trust': values['investment_trust'],
+                            'insurance': values['insurance'],
+                        }
+                        prev_total_value = total_value
+                    
+                    # 当日のスナップショットを保存または更新
                     if self.use_postgres:
                         # PostgreSQLの場合：UPSERT（ON CONFLICT）を使用
-                        logger.info(f"💾 Saving to PostgreSQL...")
                         c.execute('''INSERT INTO asset_history 
                                     (user_id, record_date, jp_stock_value, us_stock_value, cash_value, 
                                      gold_value, crypto_value, investment_trust_value, insurance_value, total_value,
@@ -157,7 +154,6 @@ class AssetService:
                                   prev_values['insurance'], prev_total_value))
                     else:
                         # SQLiteの場合
-                        logger.info(f"💾 Saving to SQLite...")
                         c.execute('''INSERT OR REPLACE INTO asset_history 
                                     (user_id, record_date, jp_stock_value, us_stock_value, cash_value, 
                                      gold_value, crypto_value, investment_trust_value, insurance_value, total_value,
@@ -172,47 +168,17 @@ class AssetService:
                                   prev_values['gold'], prev_values['crypto'], prev_values['investment_trust'],
                                   prev_values['insurance'], prev_total_value))
                     
-                    # ✅ 明示的にコミット
                     conn.commit()
-                    logger.info(f"✅ Data committed to database")
-                    
-                    # ✅ デバッグ: 保存されたデータを確認
-                    if self.use_postgres:
-                        c.execute('SELECT * FROM asset_history WHERE user_id = %s AND record_date = %s',
-                                 (user_id, today))
-                    else:
-                        c.execute('SELECT * FROM asset_history WHERE user_id = ? AND record_date = ?',
-                                 (user_id, today))
-                    
-                    saved_record = c.fetchone()
-                    if saved_record:
-                        logger.info(f"✅ Verified: Record saved successfully")
-                        logger.info(f"  📊 Saved total: ¥{float(saved_record['total_value'] or 0):,.2f}")
-                    else:
-                        logger.error(f"❌ Verification failed: Record not found after save")
+                    logger.info(f"✅ Asset snapshot completed for user {user_id}")
+                    return # 成功したら終了
                 
-                except Exception as save_error:
-                    logger.error(f"❌ Error saving snapshot: {save_error}", exc_info=True)
-                    conn.rollback()
+            except Exception as e:
+                logger.error(f"⚠️ Error recording snapshot (Attempt {attempt+1}): {e}")
+                if attempt < max_retries - 1:
+                    time.sleep(retry_delay * (attempt + 1))
+                else:
+                    logger.error(f"❌ Failed to record asset snapshot after {max_retries} attempts")
                     raise
-                
-                # ✅ デバッグ: 前日比を計算して表示
-                day_changes = {}
-                for asset_type in asset_types:
-                    change = values[asset_type] - prev_values[asset_type]
-                    change_rate = (change / prev_values[asset_type] * 100) if prev_values[asset_type] > 0 else 0
-                    day_changes[asset_type] = (change, change_rate)
-                    logger.info(f"  📈 {asset_type}: {'+' if change >= 0 else ''}¥{change:,.2f} ({'+' if change_rate >= 0 else ''}{change_rate:.2f}%)")
-                
-                total_change = total_value - prev_total_value
-                total_change_rate = (total_change / prev_total_value * 100) if prev_total_value > 0 else 0
-                logger.info(f"  💹 Total change: {'+' if total_change >= 0 else ''}¥{total_change:,.2f} ({'+' if total_change_rate >= 0 else ''}{total_change_rate:.2f}%)")
-                
-                logger.info(f"✅ === Asset snapshot completed for user {user_id} on {today} ===")
-        
-        except Exception as e:
-            logger.error(f"❌ Failed to record asset snapshot: {e}", exc_info=True)
-            raise
     
     def update_user_prices(self, user_id):
         """特定ユーザーの全資産価格を更新（並列処理）"""
