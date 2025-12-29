@@ -89,6 +89,11 @@
         transition: transform 0.2s ease, box-shadow 0.2s ease;
         position: relative;
         overflow: hidden;
+        cursor: grab; /* ドラッグ可能なカーソル */
+    }
+    
+    .asset-card-new:active {
+        cursor: grabbing;
     }
     
     .asset-card-new:hover {
@@ -346,6 +351,8 @@
         .asset-card-new { margin-bottom: 0; }
     }
 </style>
+<!-- SortableJS CDN -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Sortable/1.15.0/Sortable.min.js"></script>
 {% endblock %}
 
 {% block content %}
@@ -399,7 +406,7 @@
     </div>
 {% endif %}
 
-<!-- 追加ボタン（PCでは上部、モバイルではFAB） -->
+<!-- 追加ボタン -->
 <button class="add-button" onclick="showAddForm()">
     <span class="desktop-text" style="display: none;">＋ 新規追加</span>
     <span class="mobile-text">＋</span>
@@ -412,10 +419,10 @@
 </style>
 
 <!-- 資産リスト（カードグリッド） -->
-<div class="asset-card-grid">
+<div class="asset-card-grid" id="sortable-grid">
 {% if assets %}
     {% for asset in assets %}
-        <div class="asset-card-new">
+        <div class="asset-card-new" data-id="{{ asset.id }}">
             <!-- ヘッダー: 名前と現在値 -->
             <div class="card-row-header">
                 <div class="asset-info">
@@ -626,6 +633,41 @@ function hideAddForm() {
 document.getElementById('formOverlay').addEventListener('click', function(e) {
     if (e.target === this) {
         hideAddForm();
+    }
+});
+
+// 並び替え機能 (SortableJS)
+document.addEventListener('DOMContentLoaded', function() {
+    var el = document.getElementById('sortable-grid');
+    if (el) {
+        var sortable = Sortable.create(el, {
+            animation: 150,
+            onEnd: function (evt) {
+                // 並び順をサーバーに保存
+                var itemEl = evt.item;
+                var newOrder = [];
+                var items = el.querySelectorAll('.asset-card-new');
+                
+                items.forEach(function(item) {
+                    newOrder.push(item.getAttribute('data-id'));
+                });
+                
+                fetch('{{ url_for("assets.reorder_assets") }}', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ asset_ids: newOrder })
+                })
+                .then(response => response.json())
+                .then(data => {
+                    console.log('Order updated:', data);
+                })
+                .catch((error) => {
+                    console.error('Error updating order:', error);
+                });
+            }
+        });
     }
 });
 </script>
