@@ -20,7 +20,7 @@ def ping():
 
 def run_daily_batch():
     """全ユーザーの資産更新・スナップショット保存を行うバッチ処理"""
-    logger.info("⏰ === Starting Daily Batch Process (23:58 JST) ===")
+    logger.info("⏰ === Starting Daily Batch Process (Manual Trigger) ===")
     
     try:
         # 循環参照を避けるため関数内でインポート
@@ -34,7 +34,7 @@ def run_daily_batch():
                 c.execute('SELECT id, username FROM users')
             users = c.fetchall()
         
-        logger.info(f"👥 Found {len(users)} users for daily update.")
+        logger.info(f"👥 Found {len(users)} users for update.")
         
         for user in users:
             user_id = user['id']
@@ -68,7 +68,7 @@ def run_daily_batch():
                             conn.commit()
                         logger.info(f"   ✅ Prices updated for {username}")
                 
-                # 3. スナップショット保存（UPSERT処理が前提）
+                # 3. スナップショット保存
                 asset_service.record_asset_snapshot(user_id)
                 logger.info(f"   📸 Snapshot recorded for {username}")
                 
@@ -76,48 +76,32 @@ def run_daily_batch():
                 logger.error(f"   ❌ Error processing user {username}: {e}")
                 continue
                 
-        logger.info("✅ === Daily Batch Process Completed ===")
+        logger.info("✅ === Batch Process Completed ===")
         
     except Exception as e:
-        logger.error(f"❌ Critical Error in Daily Batch: {e}", exc_info=True)
+        logger.error(f"❌ Critical Error in Batch: {e}", exc_info=True)
 
 def keep_alive():
     """
-    アプリケーションがスリープしないように定期的にPingを送り、
-    かつ23:58(JST)になったらバッチ処理を実行するループ関数。
+    アプリケーションがスリープしないように定期的にPingを送るループ関数。
+    ※重要: バッチ処理の自動実行は scheduler_service.py に任せるため、ここでは実行しません。
     """
     app_url = os.environ.get('RENDER_EXTERNAL_URL')
     
-    # URLが設定されていなくてもループ（スケジューラ）は回す場合、ここを調整
     if not app_url:
-        logger.info("⚠️ RENDER_EXTERNAL_URL is not set. Keep-alive ping will not run, but scheduler might need this thread.")
-        # 必要に応じて return せず、ping_url = None として扱う
+        logger.info("⚠️ RENDER_EXTERNAL_URL is not set. Keep-alive ping will not run.")
+        # ループは継続しない（スレッド終了）
+        return
     
-    ping_url = f"{app_url}/ping" if app_url else None
-    last_run_date = None
-    
-    logger.info("🚀 Keep-alive & Scheduler thread started.")
+    ping_url = f"{app_url}/ping"
+    logger.info("🚀 Keep-alive thread started.")
     
     while True:
         # 1. Ping送信 (Sleep防止)
-        if ping_url:
-            try:
-                requests.get(ping_url, timeout=10)
-            except Exception as e:
-                logger.error(f"Keep-alive ping failed: {e}")
+        try:
+            requests.get(ping_url, timeout=10)
+        except Exception as e:
+            logger.error(f"Keep-alive ping failed: {e}")
         
-        # 2. 定期実行チェック (JST)
-        now_jst = datetime.now(timezone(timedelta(hours=9)))
-        current_date = now_jst.date()
-        
-        # 23:58台 かつ 今日まだ実行していない場合
-        if now_jst.hour == 23 and now_jst.minute == 58 and last_run_date != current_date:
-            logger.info(f"⏰ It is {now_jst.strftime('%H:%M')}. Running daily batch...")
-            try:
-                run_daily_batch()
-                last_run_date = current_date
-            except Exception as e:
-                logger.error(f"Scheduler execution failed: {e}")
-        
-        # 23:58を逃さないよう、短めの間隔で待機 (50秒)
-        time.sleep(50)
+        # 2. 待機 (5分間隔)
+        time.sleep(300)
