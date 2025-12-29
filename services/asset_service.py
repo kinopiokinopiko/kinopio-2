@@ -24,7 +24,7 @@ class AssetService:
         
         for attempt in range(max_retries):
             try:
-                logger.info(f"📸 === Starting asset snapshot for user {user_id} (Attempt {attempt+1}/{max_retries}) ===")
+                logger.info(f"📸 === [START] Asset snapshot for user {user_id} (Attempt {attempt+1}/{max_retries}) ===")
                 
                 with db_manager.get_db() as conn:
                     # PostgreSQL/SQLiteの統一インターフェース
@@ -38,7 +38,7 @@ class AssetService:
                     today = datetime.now(jst).date()
                     yesterday = today - timedelta(days=1)
                     
-                    logger.info(f"📅 Recording snapshot for date: {today}")
+                    logger.info(f"📅 Date: {today}, Yesterday: {yesterday}")
                     
                     asset_types = ['jp_stock', 'us_stock', 'cash', 'gold', 'crypto', 'investment_trust', 'insurance']
                     values = {}
@@ -46,6 +46,7 @@ class AssetService:
                     # USD/JPYレートを取得
                     try:
                         usd_jpy = price_service.get_usd_jpy_rate()
+                        logger.info(f"💱 USD/JPY Rate: {usd_jpy}")
                     except Exception as e:
                         logger.warning(f"⚠️ Failed to get USD/JPY rate: {e}")
                         usd_jpy = 150.0
@@ -75,6 +76,8 @@ class AssetService:
                         values[asset_type] = total
                     
                     total_value = sum(values.values())
+                    logger.info(f"📊 Calculated Values: {values}")
+                    logger.info(f"💰 Total Value: {total_value:,.2f}")
                     
                     # 昨日のスナップショットを取得（前日の値として使用）
                     if self.use_postgres:
@@ -96,6 +99,7 @@ class AssetService:
                     
                     # 前日のデータがある場合はそれを使用、ない場合は0
                     if yesterday_record:
+                        logger.info(f"🔙 Found yesterday's record for comparison.")
                         prev_values = {
                             'jp_stock': float(yesterday_record['jp_stock_value'] or 0),
                             'us_stock': float(yesterday_record['us_stock_value'] or 0),
@@ -107,6 +111,7 @@ class AssetService:
                         }
                         prev_total_value = float(yesterday_record['total_value'] or 0)
                     else:
+                        logger.info(f"🆕 No yesterday's record. Using current values as previous.")
                         prev_values = {
                             'jp_stock': values['jp_stock'],
                             'us_stock': values['us_stock'],
@@ -119,6 +124,7 @@ class AssetService:
                         prev_total_value = total_value
                     
                     # 当日のスナップショットを保存または更新
+                    logger.info("💾 Saving snapshot to database...")
                     if self.use_postgres:
                         # PostgreSQLの場合：UPSERT（ON CONFLICT）を使用
                         c.execute('''INSERT INTO asset_history 
@@ -169,11 +175,12 @@ class AssetService:
                                   prev_values['insurance'], prev_total_value))
                     
                     conn.commit()
-                    logger.info(f"✅ Asset snapshot completed for user {user_id}")
+                    logger.info(f"✅ [COMMIT] Transaction committed for user {user_id}")
+                    logger.info(f"✅ Asset snapshot completed successfully")
                     return # 成功したら終了
                 
             except Exception as e:
-                logger.error(f"⚠️ Error recording snapshot (Attempt {attempt+1}): {e}")
+                logger.error(f"⚠️ [ERROR] Snapshot failed (Attempt {attempt+1}): {e}", exc_info=True)
                 if attempt < max_retries - 1:
                     time.sleep(retry_delay * (attempt + 1))
                 else:
