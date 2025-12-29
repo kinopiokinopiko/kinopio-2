@@ -27,11 +27,12 @@ def get_dashboard_data(user_id):
         with db_manager.get_db() as conn:
             c = conn.cursor()
             
-            # 全資産を取得
+            # 全資産を取得（✅ display_order順でソート）
+            # asset_typeでグループ化しつつ、その中でdisplay_order順に並べる
             if db_manager.use_postgres:
-                c.execute('SELECT * FROM assets WHERE user_id = %s ORDER BY asset_type, symbol', (user_id,))
+                c.execute('SELECT * FROM assets WHERE user_id = %s ORDER BY asset_type, display_order ASC, symbol ASC', (user_id,))
             else:
-                c.execute('SELECT * FROM assets WHERE user_id = ? ORDER BY asset_type, symbol', (user_id,))
+                c.execute('SELECT * FROM assets WHERE user_id = ? ORDER BY asset_type, display_order ASC, symbol ASC', (user_id,))
             
             all_assets = c.fetchall()
             
@@ -44,7 +45,8 @@ def get_dashboard_data(user_id):
                 for asset in all_assets:
                     try:
                         asset_type = asset['asset_type']
-                        assets_by_type[asset_type].append(dict(asset))
+                        if asset_type in assets_by_type:
+                            assets_by_type[asset_type].append(dict(asset))
                     except (KeyError, TypeError) as e:
                         continue
             
@@ -182,7 +184,7 @@ def get_dashboard_data(user_id):
                 ]
             }
             
-            # ✅ 修正: 履歴データ取得（最新365日分を降順で取得）
+            # 履歴データ取得（最新365日分を降順で取得）
             query_history = '''SELECT record_date, jp_stock_value, us_stock_value, cash_value, 
                                    gold_value, crypto_value, investment_trust_value, 
                                    insurance_value, total_value
@@ -200,7 +202,7 @@ def get_dashboard_data(user_id):
             c.execute(query_history, (user_id,))
             history = c.fetchall() or []
             
-            # ✅ 重要: 降順で取得したデータを反転させて、グラフ用に時系列順（古→新）にする
+            # 時系列順（古→新）にする
             history.reverse()
             
             def format_date(date_obj):
@@ -259,10 +261,8 @@ def dashboard():
     try:
         with db_manager.get_db() as conn:
             c = conn.cursor()
-            if db_manager.use_postgres:
-                c.execute('SELECT username FROM users WHERE id = %s', (user_id,))
-            else:
-                c.execute('SELECT username FROM users WHERE id = ?', (user_id,))
+            query = 'SELECT username FROM users WHERE id = %s' if db_manager.use_postgres else 'SELECT username FROM users WHERE id = ?'
+            c.execute(query, (user_id,))
             user = c.fetchone()
             
             if not user:
