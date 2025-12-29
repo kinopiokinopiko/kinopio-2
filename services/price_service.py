@@ -40,16 +40,18 @@ class PriceService:
             elif isinstance(asset, dict):
                 asset_dict = asset
             else:
+                logger.error(f"❌ Unexpected asset type: {type(asset)}")
                 return None
             
             asset_id = asset_dict['id']
             asset_type = asset_dict['asset_type']
             symbol = asset_dict['symbol']
             
+            logger.debug(f"🔍 Fetching price for {symbol} ({asset_type})")
+            
             if asset_type in ['cash', 'insurance']:
                 return None
             
-            # キャッシュチェック
             cache_key = f"{asset_type}:{symbol}"
             cached = self.cache.get(cache_key)
             if cached:
@@ -77,8 +79,12 @@ class PriceService:
                     price, name = self._fetch_crypto(symbol)
                 elif asset_type == 'investment_trust':
                     price, name = self._fetch_investment_trust(symbol)
-            except Exception as e:
-                logger.warning(f"⚠️ Failed to fetch price for {symbol}: {e}")
+                else:
+                    logger.warning(f"⚠️ Unknown asset type: {asset_type}")
+                    return None
+            
+            except Exception as fetch_error:
+                logger.warning(f"⚠️ Failed to fetch price for {symbol}, skipping: {fetch_error}")
                 return None
             
             self.cache.set(cache_key, {'price': price, 'name': name})
@@ -121,40 +127,8 @@ class PriceService:
     
     def _fetch_jp_stock(self, symbol):
         """日本株の価格と名称を取得"""
+        # 1. 価格取得 (API)
         try:
-            # 1. 名称取得: Yahoo!ファイナンス(日本)をスクレイピング
-            scrape_url = f"https://finance.yahoo.co.jp/quote/{symbol}.T"
-            response = self.session.get(scrape_url, timeout=10)
-            
-            name = f"Stock {symbol}"
-            
-            if response.status_code == 200:
-                soup = BeautifulSoup(response.text, 'html.parser')
-                
-                # 名称取得の優先順位: H1 > Title
-                target_element = soup.find('h1')
-                if not target_element:
-                    target_element = soup.find('title')
-                
-                if target_element:
-                    raw_name = target_element.get_text(strip=True)
-                    
-                    # 不要な文字を削除するクリーニング処理
-                    # 1. 区切り文字以降を削除 ("【", " - ")
-                    cleaned = raw_name.split('【')[0].split(' - ')[0]
-                    
-                    # 2. 特定のフレーズを削除 (正規表現で強力に除去)
-                    # "の株価", "・株式情報", "株価" など
-                    cleaned = re.sub(r'(の?株価[・･]?株式情報|の?株価|株式情報).*$', '', cleaned)
-                    
-                    # 3. 会社種別を削除
-                    cleaned = cleaned.replace('(株)', '').replace('株)', '').replace('(株', '').strip()
-                    
-                    if cleaned:
-                        name = cleaned
-                        logger.info(f"✅ Cleaned JP name: {name}")
-            
-            # 2. 価格取得: APIを使用
             api_url = f"https://query1.finance.yahoo.com/v8/finance/chart/{symbol}.T"
             api_res = self.session.get(api_url, timeout=5)
             price = 0.0
@@ -166,46 +140,62 @@ class PriceService:
                     price = (meta.get('regularMarketPrice') or 
                            meta.get('previousClose') or 
                            meta.get('chartPreviousClose') or 0)
-            
-            if price > 0:
-                return price, name
-            
-            raise ValueError(f"Price not found for {symbol}")
-            
         except Exception as e:
-            logger.error(f"❌ Error getting JP stock {symbol}: {e}")
+            logger.error(f"Error fetching JP stock price: {e}")
             raise
+
+        # 2. 名称取得 (Yahoo!ファイナンス日本版スクレイピング)
+        name = f"Stock {symbol}"
+        try:
+            url = f"https://finance.yahoo.co.jp/quote/{symbol}.T"
+            response = self.session.get(url, timeout=10)
+            
+            if response.status_code == 200:
+                soup = BeautifulSoup(response.text, 'html.parser')
+                
+                # 画像の構造に合わせてH1を取得
+                # <header>タグ内、もしくはメインコンテンツ内の最初のh1を探す
+                h1 = soup.find('h1')
+                if h1:
+                    raw_name = h1.get_text(strip=True)
+                    # 不要な文言の削除
+                    cleanup_patterns = [
+                        r'の株価.*', r'【.*】', r'\(株\)', r'（株）', r'株式会社'
+                    ]
+                    cleaned_name = raw_name
+                    for pattern in cleanup_patterns:
+                        cleaned_name = re.sub(pattern, '', cleaned_name)
+                    
+                    if cleaned_name.strip():
+                        name = cleaned_name.strip()
+                        logger.info(f"✅ Scraped JP Name: {name}")
+                    else:
+                        # 全部消えてしまった場合は元のテキストを使用
+                        name = raw_name
+        except Exception as e:
+            logger.warning(f"JP stock name scraping failed: {e}")
+
+        if price > 0:
+            return price, name
+        raise ValueError(f"Price not found for {symbol}")
 
     def _fetch_us_stock(self, symbol):
         """米国株の価格を取得"""
         try:
             api_url = f"https://query1.finance.yahoo.com/v8/finance/chart/{symbol.upper()}"
             response = self.session.get(api_url, timeout=10)
-            response.raise_for_status()
-            
             data = response.json()
             
-            if 'chart' in data and 'result' in data['chart'] and data['chart']['result']:
+            if 'chart' in data and 'result' in data['chart']:
                 result = data['chart']['result'][0]
-                
-                price_usd = 0
-                if 'meta' in result:
-                    meta = result['meta']
-                    price_usd = (meta.get('regularMarketPrice') or 
-                               meta.get('previousClose') or 
-                               meta.get('chartPreviousClose') or 0)
-                
-                name = symbol.upper()
-                if 'meta' in result:
-                    name = meta.get('shortName') or meta.get('longName') or symbol.upper()
-                
-                if price_usd > 0:
-                    return round(float(price_usd), 2), name
-            
-            raise ValueError(f"Price not found for {symbol}")
-        
+                meta = result['meta']
+                price = (meta.get('regularMarketPrice') or meta.get('previousClose') or 0)
+                name = meta.get('shortName') or symbol.upper()
+                if price > 0:
+                    return round(float(price), 2), name
+            raise ValueError("Price not found")
         except Exception as e:
-            logger.error(f"❌ Error getting US stock {symbol}: {e}")
+            logger.error(f"Error US stock: {e}")
             raise
     
     def _fetch_gold_price(self):
@@ -213,86 +203,48 @@ class PriceService:
         try:
             url = "https://gold.tanaka.co.jp/commodity/souba/english/index.php"
             response = self.session.get(url, timeout=10)
-            
             soup = BeautifulSoup(response.text, 'html.parser')
+            
             for tr in soup.find_all('tr'):
                 tds = tr.find_all('td')
-                if len(tds) > 1 and tds[0].get_text(strip=True).upper() == 'GOLD':
-                    price_text = tds[1].get_text(strip=True)
-                    price_match = re.search(r'([0-9,]+)\s*yen', price_text)
-                    if price_match:
-                        price = int(price_match.group(1).replace(',', ''))
-                        return price, "金(Gold)"
+                if len(tds) > 1 and 'GOLD' in tds[0].get_text(strip=True).upper():
+                    price = int(re.search(r'([0-9,]+)', tds[1].get_text()).group(1).replace(',', ''))
+                    return price, "金(Gold)"
             raise ValueError("Gold price not found")
         except Exception as e:
-            logger.error(f"❌ Error getting gold price: {e}")
+            logger.error(f"Error gold: {e}")
             raise
     
     def _fetch_crypto(self, symbol):
-        """暗号資産の価格を取得（API不使用・スクレイピング強化版）"""
+        """暗号資産の価格を取得 (Yahoo!ファイナンスAPIエンドポイント使用)"""
         try:
-            symbol = (symbol or '').upper()
-            # みんかぶのURL (例: https://cc.minkabu.jp/pair/BTC_JPY)
+            symbol = symbol.upper()
+            # Yahoo! Financeのシンボル形式に変換 (BTC -> BTC-JPY)
+            yahoo_symbol = f"{symbol}-JPY"
+            
+            api_url = f"https://query1.finance.yahoo.com/v8/finance/chart/{yahoo_symbol}"
+            response = self.session.get(api_url, timeout=10)
+            
+            if response.status_code == 200:
+                data = response.json()
+                if 'chart' in data and 'result' in data['chart'] and data['chart']['result']:
+                    meta = data['chart']['result'][0]['meta']
+                    price = (meta.get('regularMarketPrice') or 
+                           meta.get('previousClose') or 0)
+                    
+                    if price > 0:
+                        logger.info(f"✅ Crypto ({symbol}): ¥{price:,.0f}")
+                        return float(price), symbol
+            
+            # バックアップ: みんかぶ (既存ロジック)
             url = f"https://cc.minkabu.jp/pair/{symbol}_JPY"
-            
-            response = self.session.get(url, timeout=10)
-            response.raise_for_status()
-            text = response.text
-            soup = BeautifulSoup(text, 'html.parser')
-            
-            price = 0.0
-            
-            # パターン1: data-price 属性を探す
-            # <div ... data-price="9000000" ...>
-            price_element = soup.find(attrs={"data-price": True})
-            if price_element:
-                try:
-                    price = float(price_element['data-price'])
-                    logger.info(f"✅ Crypto {symbol} found via data-price: {price}")
-                except:
-                    pass
-
-            # パターン2: 特定のクラスのテキストを探す (.pair_price, .price, .stock_price)
-            if price <= 0:
-                selectors = [
-                    'div.pair_price', 
-                    'span.pair_price', 
-                    'div.price', 
-                    'span.price', 
-                    'div.stock_price'
-                ]
-                for selector in selectors:
-                    element = soup.select_one(selector)
-                    if element:
-                        # "9,000,000 円" のようなテキストから数値のみ抽出
-                        text_val = element.get_text(strip=True)
-                        m = re.search(r'([0-9,]+(?:\.[0-9]+)?)', text_val)
-                        if m:
-                            try:
-                                price = float(m.group(1).replace(',', ''))
-                                logger.info(f"✅ Crypto {symbol} found via selector {selector}: {price}")
-                                break
-                            except:
-                                pass
-            
-            # パターン3: JSON-LDやスクリプト内のデータを探す (最終手段)
-            if price <= 0:
-                matches = re.findall(r'"price"\s*:\s*"?([0-9\.,]+)"?', text)
-                for m in matches:
-                    try:
-                        p = float(m.replace(',', ''))
-                        if p > 0:
-                            price = p
-                            logger.info(f"✅ Crypto {symbol} found via JSON regex: {price}")
-                            break
-                    except:
-                        pass
-
-            if price > 0:
-                return round(price, 2), symbol
+            text = self.session.get(url, timeout=10).text
+            m = re.search(r'([0-9]{1,3}(?:,[0-9]{3})*(?:\.\d+)?)\s*円', text)
+            if m:
+                val = float(m.group(1).replace(',', ''))
+                return val, symbol
                 
-            raise ValueError(f"Crypto price not found for {symbol} on page")
-            
+            raise ValueError(f"Crypto price not found for {symbol}")
         except Exception as e:
             logger.error(f"❌ Error getting crypto {symbol}: {e}")
             raise
@@ -312,27 +264,15 @@ class PriceService:
             response = self.session.get(url, timeout=10)
             soup = BeautifulSoup(response.text, 'html.parser')
             
-            def extract_num(s):
-                if not s: return None
-                s = s.replace(',', '').replace(' ', '').replace('円', '')
-                m = re.search(r'([+-]?\d+(?:\.\d+)?)', s)
-                return float(m.group(1)) if m else None
-
-            th = soup.find('th', string=re.compile(r'\s*基準価額\s*'))
-            if th:
-                td = th.find_next_sibling('td')
-                if td:
-                    val = extract_num(td.get_text())
-                    if val: return round(val, 2), symbol
+            th = soup.find('th', string=re.compile(r'基準価額'))
+            if th and th.find_next_sibling('td'):
+                val_text = th.find_next_sibling('td').get_text()
+                val = re.search(r'([0-9,]+)', val_text)
+                if val: return float(val.group(1).replace(',', '')), symbol
             
-            for selector in ['.price', '.nav', 'dd.fund-detail-nav', 'td.alR']:
-                for elem in soup.select(selector):
-                    val = extract_num(elem.get_text())
-                    if val and 1000 <= val <= 100000: return round(val, 2), symbol
-            
-            raise ValueError(f"Fund price not found for {symbol}")
+            raise ValueError("Fund price not found")
         except Exception as e:
-            logger.error(f"❌ Error getting investment trust {symbol}: {e}")
+            logger.error(f"Error fund: {e}")
             raise
     
     def get_usd_jpy_rate(self):
