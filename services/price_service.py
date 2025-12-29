@@ -40,18 +40,16 @@ class PriceService:
             elif isinstance(asset, dict):
                 asset_dict = asset
             else:
-                logger.error(f"❌ Unexpected asset type: {type(asset)}")
                 return None
             
             asset_id = asset_dict['id']
             asset_type = asset_dict['asset_type']
             symbol = asset_dict['symbol']
             
-            logger.debug(f"🔍 Fetching price for {symbol} ({asset_type})")
-            
             if asset_type in ['cash', 'insurance']:
                 return None
             
+            # キャッシュチェック
             cache_key = f"{asset_type}:{symbol}"
             cached = self.cache.get(cache_key)
             if cached:
@@ -79,12 +77,8 @@ class PriceService:
                     price, name = self._fetch_crypto(symbol)
                 elif asset_type == 'investment_trust':
                     price, name = self._fetch_investment_trust(symbol)
-                else:
-                    logger.warning(f"⚠️ Unknown asset type: {asset_type}")
-                    return None
-            
-            except Exception as fetch_error:
-                logger.warning(f"⚠️ Failed to fetch price for {symbol}, skipping: {fetch_error}")
+            except Exception as e:
+                logger.warning(f"⚠️ Failed to fetch price for {symbol}: {e}")
                 return None
             
             self.cache.set(cache_key, {'price': price, 'name': name})
@@ -126,60 +120,41 @@ class PriceService:
             return updated_prices
     
     def _fetch_jp_stock(self, symbol):
-        """日本株の価格と名称を取得（Yahoo!ファイナンス日本版をより強力にスクレイピング）"""
+        """日本株の価格と名称を取得"""
         try:
             # 1. 名称取得: Yahoo!ファイナンス(日本)をスクレイピング
             scrape_url = f"https://finance.yahoo.co.jp/quote/{symbol}.T"
             response = self.session.get(scrape_url, timeout=10)
             
-            name = ""
+            name = f"Stock {symbol}"
             
             if response.status_code == 200:
                 soup = BeautifulSoup(response.text, 'html.parser')
                 
-                # パターンA: h1タグ (通常ここに社名がある)
-                h1 = soup.find('h1')
-                if h1:
-                    raw_name = h1.get_text(strip=True)
-                    name = raw_name
+                # 名称取得の優先順位: H1 > Title
+                target_element = soup.find('h1')
+                if not target_element:
+                    target_element = soup.find('title')
                 
-                # パターンB: titleタグ (h1が取れない場合のバックアップ)
-                if not name or name == "Yahoo!ファイナンス":
-                    title = soup.find('title')
-                    if title:
-                        name = title.get_text(strip=True)
-
-                # --- 強力なクレンジング処理 ---
-                if name:
-                    # 1. 特定のフレーズ以降を削除
-                    # 「【xxxx】」 「の株価」 「:」 「- Yahoo」 など
-                    cleanup_patterns = [
-                        r'【.*',           # 【証券コード】以降を削除
-                        r'の株価.*',       # の株価・株式情報... を削除
-                        r'：.*',           # ：株価... を削除
-                        r'\s-\s*Yahoo.*'   # - Yahoo!ファイナンス を削除
-                    ]
+                if target_element:
+                    raw_name = target_element.get_text(strip=True)
                     
-                    for pattern in cleanup_patterns:
-                        name = re.split(pattern, name)[0]
+                    # 不要な文字を削除するクリーニング処理
+                    # 1. 区切り文字以降を削除 ("【", " - ")
+                    cleaned = raw_name.split('【')[0].split(' - ')[0]
                     
-                    # 2. 会社種別などの削除
-                    # (株), 株式会社, (有) などを削除
-                    replacements = [
-                        ('(株)', ''), ('（株）', ''), ('株式会社', ''),
-                        ('(有)', ''), ('（有）', ''), ('有限会社', ''),
-                        ('株)', ''), ('(株', '')
-                    ]
-                    for old, new in replacements:
-                        name = name.replace(old, new)
+                    # 2. 特定のフレーズを削除 (正規表現で強力に除去)
+                    # "の株価", "・株式情報", "株価" など
+                    cleaned = re.sub(r'(の?株価[・･]?株式情報|の?株価|株式情報).*$', '', cleaned)
                     
-                    # 3. 前後の空白削除
-                    name = name.strip()
+                    # 3. 会社種別を削除
+                    cleaned = cleaned.replace('(株)', '').replace('株)', '').replace('(株', '').strip()
                     
-                    logger.info(f"✅ Cleaned JP name: {name}")
-
-            # もしスクレイピングで名前が取れなかった場合、英語APIの結果を使うためのフォールバック
-            # APIから取得
+                    if cleaned:
+                        name = cleaned
+                        logger.info(f"✅ Cleaned JP name: {name}")
+            
+            # 2. 価格取得: APIを使用
             api_url = f"https://query1.finance.yahoo.com/v8/finance/chart/{symbol}.T"
             api_res = self.session.get(api_url, timeout=5)
             price = 0.0
@@ -191,11 +166,7 @@ class PriceService:
                     price = (meta.get('regularMarketPrice') or 
                            meta.get('previousClose') or 
                            meta.get('chartPreviousClose') or 0)
-                    
-                    # スクレイピングで名前が取れていない場合、APIのshortNameを使う（英語になる可能性が高いが、ないよりマシ）
-                    if not name:
-                        name = meta.get('shortName') or meta.get('longName') or f"Stock {symbol}"
-
+            
             if price > 0:
                 return price, name
             
@@ -206,7 +177,7 @@ class PriceService:
             raise
 
     def _fetch_us_stock(self, symbol):
-        """米国株の価格を取得（Yahoo Finance API - USD）"""
+        """米国株の価格を取得"""
         try:
             api_url = f"https://query1.finance.yahoo.com/v8/finance/chart/{symbol.upper()}"
             response = self.session.get(api_url, timeout=10)
@@ -258,30 +229,70 @@ class PriceService:
             raise
     
     def _fetch_crypto(self, symbol):
-        """暗号資産の価格を取得"""
+        """暗号資産の価格を取得（API不使用・スクレイピング強化版）"""
         try:
             symbol = (symbol or '').upper()
+            # みんかぶのURL (例: https://cc.minkabu.jp/pair/BTC_JPY)
             url = f"https://cc.minkabu.jp/pair/{symbol}_JPY"
+            
             response = self.session.get(url, timeout=10)
+            response.raise_for_status()
             text = response.text
+            soup = BeautifulSoup(text, 'html.parser')
             
-            def extract_num(s):
-                if not s: return None
-                s = s.replace(',', '').replace(' ', '')
-                m = re.search(r'([+-]?\d+(?:\.\d+)?)', s)
-                return float(m.group(1)) if m else None
+            price = 0.0
+            
+            # パターン1: data-price 属性を探す
+            # <div ... data-price="9000000" ...>
+            price_element = soup.find(attrs={"data-price": True})
+            if price_element:
+                try:
+                    price = float(price_element['data-price'])
+                    logger.info(f"✅ Crypto {symbol} found via data-price: {price}")
+                except:
+                    pass
 
-            matches = re.findall(r'"(?:last|price|lastPrice|close|current|ltp)"\s*:\s*"?([0-9\.,Ee+\-]+)"?', text)
-            for m in matches:
-                val = extract_num(m)
-                if val and val > 0: return round(val, 2), symbol
+            # パターン2: 特定のクラスのテキストを探す (.pair_price, .price, .stock_price)
+            if price <= 0:
+                selectors = [
+                    'div.pair_price', 
+                    'span.pair_price', 
+                    'div.price', 
+                    'span.price', 
+                    'div.stock_price'
+                ]
+                for selector in selectors:
+                    element = soup.select_one(selector)
+                    if element:
+                        # "9,000,000 円" のようなテキストから数値のみ抽出
+                        text_val = element.get_text(strip=True)
+                        m = re.search(r'([0-9,]+(?:\.[0-9]+)?)', text_val)
+                        if m:
+                            try:
+                                price = float(m.group(1).replace(',', ''))
+                                logger.info(f"✅ Crypto {symbol} found via selector {selector}: {price}")
+                                break
+                            except:
+                                pass
             
-            matches = re.findall(r'([0-9]{1,3}(?:,[0-9]{3})*(?:\.\d+)?)\s*円', text)
-            for m in matches:
-                val = extract_num(m)
-                if val and val > 0: return round(val, 2), symbol
+            # パターン3: JSON-LDやスクリプト内のデータを探す (最終手段)
+            if price <= 0:
+                matches = re.findall(r'"price"\s*:\s*"?([0-9\.,]+)"?', text)
+                for m in matches:
+                    try:
+                        p = float(m.replace(',', ''))
+                        if p > 0:
+                            price = p
+                            logger.info(f"✅ Crypto {symbol} found via JSON regex: {price}")
+                            break
+                    except:
+                        pass
+
+            if price > 0:
+                return round(price, 2), symbol
                 
-            raise ValueError(f"Crypto price not found for {symbol}")
+            raise ValueError(f"Crypto price not found for {symbol} on page")
+            
         except Exception as e:
             logger.error(f"❌ Error getting crypto {symbol}: {e}")
             raise
