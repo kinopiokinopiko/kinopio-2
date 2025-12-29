@@ -4,37 +4,6 @@
 
 {% block extra_styles %}
 <style>
-    .header {
-        background: var(--card-bg);
-        padding: 20px;
-        border-radius: 16px;
-        margin-bottom: 24px;
-        box-shadow: 0 2px 8px var(--shadow-color);
-        position: relative;
-    }
-    
-    .back-link {
-        color: var(--accent-color);
-        text-decoration: none;
-        font-size: 14px;
-        display: inline-block;
-        margin-bottom: 12px;
-        font-weight: 600;
-        transition: all 0.2s ease;
-    }
-
-    .back-link:hover {
-        color: var(--accent-hover);
-    }
-    
-    .header h1 {
-        font-size: 28px;
-        margin: 0;
-        color: var(--text-color);
-        font-weight: 700;
-        letter-spacing: -0.5px;
-    }
-    
     /* サマリーカード */
     .summary-card {
         background: var(--card-bg);
@@ -44,6 +13,35 @@
         text-align: center;
         box-shadow: 0 2px 8px var(--shadow-color);
         border: 1px solid var(--border-color);
+        position: relative; /* ホームボタンの配置用 */
+    }
+    
+    .home-icon {
+        position: absolute;
+        top: 20px;
+        left: 20px;
+        color: var(--text-secondary);
+        width: 36px;
+        height: 36px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        border-radius: 50%;
+        background: var(--hover-bg);
+        transition: all 0.2s ease;
+        text-decoration: none;
+    }
+
+    .home-icon:hover {
+        background: var(--chip-selected-bg);
+        color: var(--accent-color);
+        transform: scale(1.1);
+    }
+
+    .home-icon svg {
+        width: 22px;
+        height: 22px;
+        fill: currentColor;
     }
     
     .summary-title {
@@ -248,7 +246,7 @@
     }
     .btn-delete:hover { background: #c82333; }
 
-    /* 追加ボタン */
+    /* 追加ボタン (常に右下固定) */
     .add-button {
         position: fixed;
         bottom: 24px;
@@ -274,6 +272,7 @@
     .add-button:hover {
         box-shadow: 0 6px 16px rgba(0,123,255,0.5);
         background: var(--accent-hover);
+        transform: scale(1.05);
     }
     
     /* モーダル */
@@ -329,19 +328,10 @@
 
     .empty-state { text-align: center; padding: 60px 20px; color: var(--text-secondary); }
     .empty-state-icon { font-size: 64px; margin-bottom: 16px; opacity: 0.3; }
+    .empty-nav { margin-bottom: 30px; display: flex; justify-content: flex-start; }
 
     /* レスポンシブ対応 */
     @media (min-width: 768px) {
-        .add-button {
-            position: static;
-            width: 100%;
-            height: auto;
-            border-radius: 12px;
-            padding: 16px;
-            font-size: 16px;
-            margin-bottom: 24px;
-        }
-        
         .asset-card-grid {
             display: grid;
             grid-template-columns: repeat(auto-fill, minmax(340px, 1fr));
@@ -356,11 +346,6 @@
 {% endblock %}
 
 {% block content %}
-<div class="header">
-    <a href="{{ url_for('dashboard.dashboard') }}" class="back-link">← ダッシュボードへ戻る</a>
-    <h1>{{ info.title }}管理</h1>
-</div>
-
 <!-- 時価総額サマリー -->
 {% if assets %}
     {% set total_value = namespace(amount=0) %}
@@ -384,6 +369,11 @@
     {% set total_profit_rate = (total_profit / total_cost.amount * 100) if total_cost.amount > 0 else 0 %}
     
     <div class="summary-card">
+        <!-- ホームボタン (左上) -->
+        <a href="{{ url_for('dashboard.dashboard') }}" class="home-icon" title="ダッシュボードへ戻る">
+            <svg viewBox="0 0 24 24"><path d="M10 20v-6h4v6h5v-8h3L12 3 2 12h3v8z"/></svg>
+        </a>
+
         <div class="summary-title">{{ info.title }} 時価総額</div>
         <div class="summary-value">
             {% if asset_type == 'us_stock' %}
@@ -406,17 +396,8 @@
     </div>
 {% endif %}
 
-<!-- 追加ボタン -->
-<button class="add-button" onclick="showAddForm()">
-    <span class="desktop-text" style="display: none;">＋ 新規追加</span>
-    <span class="mobile-text">＋</span>
-</button>
-<style>
-@media (min-width: 768px) {
-    .add-button .mobile-text { display: none; }
-    .add-button .desktop-text { display: inline; }
-}
-</style>
+<!-- 追加ボタン (固定) -->
+<button class="add-button" onclick="showAddForm()">＋</button>
 
 <!-- 資産リスト（カードグリッド） -->
 <div class="asset-card-grid" id="sortable-grid">
@@ -540,6 +521,11 @@
         </div>
     {% endfor %}
 {% else %}
+    <div class="empty-nav">
+         <a href="{{ url_for('dashboard.dashboard') }}" class="home-icon" title="ダッシュボードへ戻る">
+            <svg viewBox="0 0 24 24"><path d="M10 20v-6h4v6h5v-8h3L12 3 2 12h3v8z"/></svg>
+        </a>
+    </div>
     <div class="empty-state">
         <div class="empty-state-icon">📭</div>
         <p>登録されている資産はありません。<br>右下のボタンから追加してください。</p>
