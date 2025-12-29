@@ -85,11 +85,12 @@
         </div>
     </a>
     
-    <!-- 金カード -->
+    <!-- 金カード (修正箇所) -->
     <a href="{{ url_for('assets.manage_assets', asset_type='gold') }}" class="asset-card">
         <div class="card-header-new">
             <div class="card-icon" style="background: transparent; padding: 0;">
-                <img src="https://upload.wikimedia.org/wikipedia/commons/thumb/6/62/Gold_Bars.svg/120px-Gold_Bars.svg.png" alt="金" style="width: 80%; height: 80%; object-fit: contain;">
+                <!-- 修正: 安定した画像URLに変更 (Microsoft 3D Emoji) -->
+                <img src="https://em-content.zobj.net/source/microsoft-teams/363/gold-ingot_1f99c.png" alt="金" style="width: 80%; height: 80%; object-fit: contain;">
             </div>
             <div class="card-info">
                 <div class="card-name-new">金(Gold)</div>
