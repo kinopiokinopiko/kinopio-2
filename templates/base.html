@@ -89,6 +89,14 @@
             from { opacity: 0; transform: translateY(-20px); }
             to { opacity: 1; transform: translateY(0); }
         }
+
+        @keyframes slideUpFade {
+            to { opacity: 0; transform: translateY(-20px); }
+        }
+
+        .alert.hiding {
+            animation: slideUpFade 0.5s ease forwards;
+        }
         
         .alert-success { 
             background: rgba(40, 167, 69, 0.2); 
@@ -154,9 +162,23 @@
         {% block content %}{% endblock %}
     </div>
     
-    <!-- Theme Toggle Logic -->
+    <!-- Theme Toggle & Alert Logic -->
     <script>
         document.addEventListener('DOMContentLoaded', function() {
+            // 1. Alert Auto-dismiss Logic
+            const successAlerts = document.querySelectorAll('.alert-success');
+            if (successAlerts.length > 0) {
+                setTimeout(() => {
+                    successAlerts.forEach(alert => {
+                        alert.classList.add('hiding');
+                        alert.addEventListener('animationend', () => {
+                            alert.remove();
+                        });
+                    });
+                }, 2000);
+            }
+
+            // 2. Theme Toggle Logic
             const currentTheme = document.documentElement.getAttribute('data-theme');
             
             // Create Toggle Button
@@ -199,8 +221,9 @@
                     wrapper.style.gap = '12px';
                     
                     headerBar.replaceChild(wrapper, lastChild);
-                    wrapper.appendChild(lastChild);
+                    // Order swapped: Theme Toggle first, then Logout
                     wrapper.appendChild(btn);
+                    wrapper.appendChild(lastChild);
                 } else {
                     headerBar.appendChild(btn);
                 }
