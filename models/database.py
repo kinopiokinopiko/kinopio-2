@@ -317,6 +317,23 @@ class DatabaseManager:
                 UNIQUE(user_id, record_date)
             )''')
             
+            # ✅ スキーママイグレーション（PostgreSQL）
+            # 新しいカラムが存在するか確認し、なければ追加する
+            new_columns = [
+                'prev_jp_stock_value', 'prev_us_stock_value', 'prev_cash_value',
+                'prev_gold_value', 'prev_crypto_value', 'prev_investment_trust_value',
+                'prev_insurance_value', 'prev_total_value'
+            ]
+            
+            # 現在のカラム一覧を取得
+            cursor.execute("SELECT column_name FROM information_schema.columns WHERE table_name = 'asset_history'")
+            existing_columns = [row['column_name'] for row in cursor.fetchall()]
+            
+            for col in new_columns:
+                if col not in existing_columns:
+                    logger.info(f"🔄 Migrating: Adding missing column '{col}' to asset_history")
+                    cursor.execute(f"ALTER TABLE asset_history ADD COLUMN {col} DOUBLE PRECISION DEFAULT 0")
+            
             # インデックス作成
             cursor.execute('CREATE INDEX IF NOT EXISTS idx_assets_user_id ON assets(user_id)')
             cursor.execute('CREATE INDEX IF NOT EXISTS idx_assets_user_type ON assets(user_id, asset_type)')
@@ -395,6 +412,21 @@ class DatabaseManager:
                 FOREIGN KEY (user_id) REFERENCES users (id) ON DELETE CASCADE,
                 UNIQUE(user_id, record_date)
             )''')
+            
+            # ✅ スキーママイグレーション（SQLite）
+            new_columns = [
+                'prev_jp_stock_value', 'prev_us_stock_value', 'prev_cash_value',
+                'prev_gold_value', 'prev_crypto_value', 'prev_investment_trust_value',
+                'prev_insurance_value', 'prev_total_value'
+            ]
+            
+            cursor.execute("PRAGMA table_info(asset_history)")
+            existing_columns = [row['name'] for row in cursor.fetchall()]
+            
+            for col in new_columns:
+                if col not in existing_columns:
+                    logger.info(f"🔄 Migrating: Adding missing column '{col}' to asset_history")
+                    cursor.execute(f"ALTER TABLE asset_history ADD COLUMN {col} REAL DEFAULT 0")
             
             # インデックス作成
             cursor.execute('CREATE INDEX IF NOT EXISTS idx_assets_user_id ON assets(user_id)')
