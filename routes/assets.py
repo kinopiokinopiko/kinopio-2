@@ -388,14 +388,15 @@ def update_prices():
                     c.execute('UPDATE assets SET price = ?, name = ? WHERE id = ?', (new_price, new_name, asset_id))
             conn.commit()
         
-        # ✅ 手動更新後、即座にスナップショットを記録してグラフに反映
+        # Snapshot recording with enhanced logging
         try:
-            logger.info(f"📸 Recording snapshot after {asset_type} price update...")
+            logger.info(f"📸 Triggering snapshot after price update for {asset_type} (User: {user_id})")
             asset_service.record_asset_snapshot(user_id)
+            logger.info(f"✅ Snapshot recording requested successfully")
             flash(f'{len(updated_prices)}件の価格を更新し、最新データを保存しました', 'success')
         except Exception as snapshot_error:
-            logger.warning(f"⚠️ Failed to record snapshot: {snapshot_error}")
-            flash(f'{len(updated_prices)}件の価格を更新しました（スナップショット保存に失敗）', 'success')
+            logger.error(f"❌ Snapshot recording failed: {snapshot_error}", exc_info=True)
+            flash(f'{len(updated_prices)}件の価格を更新しました（スナップショット保存に失敗: {snapshot_error}）', 'success')
         
         return redirect(url_for('assets.manage_assets', asset_type=asset_type))
     
@@ -404,7 +405,6 @@ def update_prices():
         flash('価格の更新に失敗しました', 'error')
         return redirect(url_for('assets.manage_assets', asset_type=asset_type))
 
-# ✅ 修正: 誤字(@@)を修正し、正しく定義
 @assets_bp.route('/update_all_prices', methods=['POST'])
 def update_all_prices():
     """全資産の価格を更新 + スナップショット保存"""
@@ -455,14 +455,15 @@ def update_all_prices():
         
         logger.info(f"✅ Updated all prices ({len(updated_prices)} assets) for user {user_id}")
         
-        # ✅ 手動更新後、即座にスナップショットを記録してグラフに反映
+        # Snapshot recording with enhanced logging
         try:
-            logger.info(f"📸 Recording snapshot after price update for user {user_id}...")
+            logger.info(f"📸 Triggering snapshot after ALL price update (User: {user_id})")
             asset_service.record_asset_snapshot(user_id)
+            logger.info(f"✅ Snapshot recording requested successfully")
             flash(f'{len(updated_prices)}件の価格を更新し、最新データを保存しました', 'success')
         except Exception as snapshot_error:
-            logger.warning(f"⚠️ Failed to record snapshot after price update: {snapshot_error}")
-            flash(f'{len(updated_prices)}件の価格を更新しました（スナップショット保存に失敗）', 'success')
+            logger.error(f"❌ Snapshot recording failed: {snapshot_error}", exc_info=True)
+            flash(f'{len(updated_prices)}件の価格を更新しました（スナップショット保存に失敗: {snapshot_error}）', 'success')
         
         return redirect(url_for('dashboard.dashboard'))
     
