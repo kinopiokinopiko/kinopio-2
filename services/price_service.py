@@ -126,26 +126,60 @@ class PriceService:
             return updated_prices
     
     def _fetch_jp_stock(self, symbol):
-        """日本株の価格と名称を取得（Yahoo!ファイナンス日本版）"""
+        """日本株の価格と名称を取得（Yahoo!ファイナンス日本版をより強力にスクレイピング）"""
         try:
             # 1. 名称取得: Yahoo!ファイナンス(日本)をスクレイピング
-            # 注: ヘッダーやセレクタはサイト仕様変更で変わる可能性があります
             scrape_url = f"https://finance.yahoo.co.jp/quote/{symbol}.T"
             response = self.session.get(scrape_url, timeout=10)
             
-            name = f"Stock {symbol}"
+            name = ""
             
             if response.status_code == 200:
                 soup = BeautifulSoup(response.text, 'html.parser')
-                # Yahoo Finance JapanのH1タグには通常社名が入っている
+                
+                # パターンA: h1タグ (通常ここに社名がある)
                 h1 = soup.find('h1')
                 if h1:
                     raw_name = h1.get_text(strip=True)
-                    # 余分な「(株)」などを削除してスッキリさせる
-                    name = raw_name.replace('(株)', '').replace('株)', '').replace('(株', '').strip()
-                    logger.info(f"✅ Found JP name: {name}")
-            
-            # 2. 価格取得: APIを使用 (より確実)
+                    name = raw_name
+                
+                # パターンB: titleタグ (h1が取れない場合のバックアップ)
+                if not name or name == "Yahoo!ファイナンス":
+                    title = soup.find('title')
+                    if title:
+                        name = title.get_text(strip=True)
+
+                # --- 強力なクレンジング処理 ---
+                if name:
+                    # 1. 特定のフレーズ以降を削除
+                    # 「【xxxx】」 「の株価」 「:」 「- Yahoo」 など
+                    cleanup_patterns = [
+                        r'【.*',           # 【証券コード】以降を削除
+                        r'の株価.*',       # の株価・株式情報... を削除
+                        r'：.*',           # ：株価... を削除
+                        r'\s-\s*Yahoo.*'   # - Yahoo!ファイナンス を削除
+                    ]
+                    
+                    for pattern in cleanup_patterns:
+                        name = re.split(pattern, name)[0]
+                    
+                    # 2. 会社種別などの削除
+                    # (株), 株式会社, (有) などを削除
+                    replacements = [
+                        ('(株)', ''), ('（株）', ''), ('株式会社', ''),
+                        ('(有)', ''), ('（有）', ''), ('有限会社', ''),
+                        ('株)', ''), ('(株', '')
+                    ]
+                    for old, new in replacements:
+                        name = name.replace(old, new)
+                    
+                    # 3. 前後の空白削除
+                    name = name.strip()
+                    
+                    logger.info(f"✅ Cleaned JP name: {name}")
+
+            # もしスクレイピングで名前が取れなかった場合、英語APIの結果を使うためのフォールバック
+            # APIから取得
             api_url = f"https://query1.finance.yahoo.com/v8/finance/chart/{symbol}.T"
             api_res = self.session.get(api_url, timeout=5)
             price = 0.0
@@ -157,7 +191,11 @@ class PriceService:
                     price = (meta.get('regularMarketPrice') or 
                            meta.get('previousClose') or 
                            meta.get('chartPreviousClose') or 0)
-            
+                    
+                    # スクレイピングで名前が取れていない場合、APIのshortNameを使う（英語になる可能性が高いが、ないよりマシ）
+                    if not name:
+                        name = meta.get('shortName') or meta.get('longName') or f"Stock {symbol}"
+
             if price > 0:
                 return price, name
             
