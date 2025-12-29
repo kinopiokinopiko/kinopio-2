@@ -11,7 +11,7 @@
         align-items: center;
         justify-content: center;
         min-height: 100vh;
-        background: #f5f5f5;
+        background: var(--bg-color);
     }
     
     .container {
@@ -25,10 +25,10 @@
     }
     
     .register-container { 
-        background: white; 
+        background: var(--card-bg); 
         padding: 30px; 
         border-radius: 12px; 
-        box-shadow: 0 2px 12px rgba(0,0,0,0.1);
+        box-shadow: 0 2px 12px var(--shadow-color);
         width: 100%;
     }
     
@@ -36,7 +36,7 @@
         font-size: 24px;
         margin-bottom: 20px;
         text-align: center;
-        color: #333;
+        color: var(--text-color);
     }
     
     .form-group {
@@ -48,28 +48,30 @@
         margin-bottom: 6px;
         font-weight: 600;
         font-size: 14px;
-        color: #333;
+        color: var(--text-color);
     }
     
     .form-group input[type="text"], 
     .form-group input[type="password"] { 
         width: 100%; 
         padding: 12px; 
-        border: 1px solid #ddd; 
+        border: 1px solid var(--border-color); 
         border-radius: 8px; 
         box-sizing: border-box;
         font-size: 15px;
+        background: var(--input-bg);
+        color: var(--text-color);
     }
     
     .form-group input:focus {
         outline: none;
-        border-color: #007bff;
+        border-color: var(--accent-color);
     }
     
     .form-group button { 
         width: 100%; 
         padding: 12px; 
-        background: #28a745; 
+        background: var(--success-color); 
         color: white; 
         border: none; 
         border-radius: 8px; 
@@ -84,8 +86,8 @@
     }
     
     .password-requirements {
-        background: #f8f9fa;
-        border: 1px solid #dee2e6;
+        background: var(--hover-bg);
+        border: 1px solid var(--border-color);
         border-radius: 8px;
         padding: 15px;
         margin-bottom: 20px;
@@ -95,7 +97,7 @@
     .password-requirements h4 {
         margin-top: 0;
         margin-bottom: 10px;
-        color: #495057;
+        color: var(--text-secondary);
         font-size: 14px;
     }
     
@@ -106,16 +108,16 @@
     
     .password-requirements li {
         margin-bottom: 5px;
-        color: #6c757d;
+        color: var(--text-secondary);
     }
     
     .login-link {
         text-align: center;
         margin-top: 20px;
         padding-top: 20px;
-        border-top: 1px solid #eee;
+        border-top: 1px solid var(--border-color);
         font-size: 14px;
-        color: #666;
+        color: var(--text-secondary);
     }
     
     .login-link p {
@@ -124,7 +126,7 @@
     }
     
     .login-link a {
-        color: #007bff;
+        color: var(--accent-color);
         text-decoration: none;
         font-weight: 600;
     }
@@ -134,14 +136,14 @@
     }
     
     .password-match {
-        color: #28a745;
+        color: var(--success-color);
         font-size: 12px;
         margin-top: 4px;
         font-weight: 600;
     }
     
     .password-mismatch {
-        color: #dc3545;
+        color: var(--danger-color);
         font-size: 12px;
         margin-top: 4px;
         font-weight: 600;

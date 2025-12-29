@@ -5,7 +5,6 @@ services:
     runtime: python-3.11.10
     buildCommand: pip install -r requirements.txt
     startCommand: gunicorn --bind 0.0.0.0:$PORT --workers 2 --threads 4 --timeout 120 --access-logfile - --error-logfile - --log-level info app:app
-    healthCheckPath: /ping  # ✅ 追加
     envVars:
       - key: SECRET_KEY
         generateValue: true

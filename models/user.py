@@ -74,19 +74,22 @@ def row_to_dict(row):
         return None
     
     try:
-        logger.debug(f"🔍 row_to_dict: row type = {type(row)}")
+        logger.info(f"🔍 row_to_dict: row type = {type(row)}")
         
+        # PostgreSQL の RealDictCursor の場合（既に辞書型）
         if isinstance(row, dict):
-            logger.debug(f"✅ row_to_dict: Already a dict with keys: {list(row.keys())}")
+            logger.info(f"✅ row_to_dict: Already a dict with keys: {list(row.keys())}")
             return row
         
+        # SQLite の Row オブジェクトまたは psycopg2 の tuple-like オブジェクト
         if hasattr(row, 'keys'):
             result = dict(zip(row.keys(), row))
-            logger.debug(f"✅ row_to_dict: Converted to dict with keys: {list(result.keys())}")
+            logger.info(f"✅ row_to_dict: Converted to dict with keys: {list(result.keys())}")
             return result
         
+        # その他のタプル形式
         result = dict(row) if hasattr(row, '__iter__') else row
-        logger.debug(f"✅ row_to_dict: Fallback conversion, type: {type(result)}")
+        logger.info(f"✅ row_to_dict: Fallback conversion, type: {type(result)}")
         return result
         
     except Exception as e:
@@ -115,7 +118,6 @@ class UserService:
             with self.db_manager.get_db() as conn:
                 c = conn.cursor()
                 
-                # ✅ 修正: データベースに応じてプレースホルダーを切り替え
                 if self.use_postgres:
                     c.execute(f'SELECT {self._get_user_columns()} FROM users WHERE id = %s', (user_id,))
                 else:
@@ -145,7 +147,6 @@ class UserService:
             with self.db_manager.get_db() as conn:
                 c = conn.cursor()
                 
-                # ✅ 修正: データベースに応じてプレースホルダーを切り替え
                 if self.use_postgres:
                     c.execute(f'SELECT {self._get_user_columns()} FROM users WHERE username = %s', (username,))
                 else:
@@ -155,13 +156,11 @@ class UserService:
                 
                 if row is None:
                     logger.warning(f"❌ User not found in database: {username}")
-                    
                     # デバッグ: 全ユーザーを表示
                     if self.use_postgres:
                         c.execute('SELECT username FROM users')
                     else:
                         c.execute('SELECT username FROM users')
-                    
                     all_users = [r[0] if isinstance(r, tuple) else r['username'] for r in c.fetchall()]
                     logger.info(f"📋 Available users in DB: {all_users}")
                     return None
@@ -195,24 +194,27 @@ class UserService:
         try:
             logger.info(f"👤 Creating user: {username}")
             
+            # バリデーション
             if not username or len(username) < 3:
                 raise ValueError("Username must be at least 3 characters")
             
             if not password or len(password) < 6:
                 raise ValueError("Password must be at least 6 characters")
             
+            # ユーザーが既に存在するか確認
             existing_user = self.get_user_by_username(username)
             if existing_user:
                 logger.warning(f"⚠️ User already exists: {username}")
                 raise ValueError("Username already exists")
             
+            # パスワードをハッシュ化
             password_hash = generate_password_hash(password)
             logger.info(f"🔐 Password hashed for user: {username}, hash preview: {password_hash[:50]}...")
             
+            # DBに保存
             with self.db_manager.get_db() as conn:
                 c = conn.cursor()
                 
-                # ✅ 修正: データベースに応じてプレースホルダーを切り替え
                 if self.use_postgres:
                     c.execute(
                         'INSERT INTO users (username, password_hash) VALUES (%s, %s) RETURNING id',
@@ -250,6 +252,7 @@ class UserService:
             logger.info(f"✅ User object retrieved: {user}")
             logger.info(f"🔑 User has password_hash: {bool(user.password_hash)}")
             
+            # パスワードチェック
             is_valid = user.check_password(password)
             logger.info(f"🔑 Final verification result: {'✅ VALID' if is_valid else '❌ INVALID'} for user {username}")
             logger.info(f"🔐 === Verification complete for user: {username} ===")
@@ -278,7 +281,6 @@ class UserService:
             with self.db_manager.get_db() as conn:
                 c = conn.cursor()
                 
-                # ✅ 修正: データベースに応じてプレースホルダーを切り替え
                 if self.use_postgres:
                     c.execute(
                         'UPDATE users SET password_hash = %s WHERE id = %s',
@@ -302,5 +304,43 @@ class UserService:
     def delete_user(self, user_id):
         """ユーザーを削除"""
         try:
-            with
-
+            with self.db_manager.get_db() as conn:
+                c = conn.cursor()
+                
+                if self.use_postgres:
+                    c.execute('DELETE FROM users WHERE id = %s', (user_id,))
+                else:
+                    c.execute('DELETE FROM users WHERE id = ?', (user_id,))
+                
+                conn.commit()
+            
+            logger.info(f"✅ User deleted: {user_id}")
+            return True
+        
+        except Exception as e:
+            logger.error(f"❌ Error deleting user: {e}", exc_info=True)
+            raise
+    
+    def get_all_users(self):
+        """すべてのユーザーを取得"""
+        try:
+            with self.db_manager.get_db() as conn:
+                c = conn.cursor()
+                c.execute(f'SELECT {self._get_user_columns()} FROM users ORDER BY id DESC')
+                rows = c.fetchall()
+                
+                users = []
+                for row in rows:
+                    row_dict = row_to_dict(row)
+                    if row_dict:
+                        user = User(
+                            row_dict['id'],
+                            row_dict['username'],
+                            row_dict['password_hash']
+                        )
+                        users.append(user)
+                
+                return users
+        except Exception as e:
+            logger.error(f"❌ Error getting all users: {e}", exc_info=True)
+            return []

@@ -4,131 +4,6 @@
 
 {% block extra_styles %}
 <style>
-    /* ✅ ダークモード用のCSS変数 */
-    :root {
-        --bg-primary: #f5f5f5;
-        --card-bg: #ffffff;
-        --text-primary: #333;
-        --text-secondary: #666;
-        --text-tertiary: #999;
-        --border-color: #f0f0f0;
-        --shadow: rgba(0,0,0,0.08);
-    }
-
-    [data-theme="dark"] {
-        --bg-primary: #1a1a1a;
-        --card-bg: #2d2d2d;
-        --text-primary: #e0e0e0;
-        --text-secondary: #b0b0b0;
-        --text-tertiary: #808080;
-        --border-color: #404040;
-        --shadow: rgba(0,0,0,0.3);
-    }
-
-    /* ✅ ダークモード対応：既存スタイルをCSS変数で上書き */
-    body {
-        background: var(--bg-primary);
-        transition: background-color 0.3s ease;
-    }
-    
-    .total-card,
-    .asset-card,
-    .chart-container-with-tabs {
-        background: var(--card-bg);
-        border-color: var(--border-color);
-        box-shadow: 0 2px 8px var(--shadow);
-        transition: all 0.3s ease;
-    }
-    
-    .header-title,
-    .total-amount {
-        color: var(--text-primary);
-        transition: color 0.3s ease;
-    }
-    
-    .total-label,
-    .profit-label,
-    .day-change-label {
-        color: var(--text-secondary);
-        transition: color 0.3s ease;
-    }
-    
-    .update-time {
-        color: var(--text-tertiary);
-        transition: color 0.3s ease;
-    }
-    
-    .tab-btn {
-        color: var(--text-tertiary);
-        transition: color 0.3s ease;
-    }
-    
-    .tab-btn.active {
-        color: var(--text-primary);
-    }
-    
-    .icon-btn {
-        color: var(--text-primary);
-    }
-    
-    .icon-btn svg {
-        stroke: var(--text-primary);
-        transition: stroke 0.3s ease;
-    }
-    
-    .tab-nav {
-        border-bottom-color: var(--border-color);
-        transition: border-color 0.3s ease;
-    }
-    
-    /* ✅ カード内の要素をダークモード対応 */
-    .card-name-new {
-        color: var(--text-secondary);
-        transition: color 0.3s ease;
-    }
-    
-    .card-amount-new {
-        color: var(--text-primary);
-        transition: color 0.3s ease;
-    }
-    
-    .detail-label {
-        color: var(--text-tertiary);
-        transition: color 0.3s ease;
-    }
-    
-    /* ✅ ダークモードで黒文字(#333)を白に変更 */
-    [data-theme="dark"] .profit-amount.zero,
-    [data-theme="dark"] .day-change-amount.zero {
-        color: var(--text-primary);
-    }
-    
-    [data-theme="dark"] .zero {
-        color: var(--text-primary);
-    }
-    
-    /* ✅ detail-badgeのゼロ表示もダークモードで明るく */
-    [data-theme="dark"] .detail-badge.zero {
-        background: #808080;
-        color: #e0e0e0;
-    }
-    
-    [data-theme="dark"] .profit-badge.zero,
-    [data-theme="dark"] .day-change-badge.zero {
-        background: #808080;
-        color: #e0e0e0;
-    }
-    
-    /* ✅ テーマアイコンのスタイル */
-    .theme-icon {
-        transition: transform 0.3s ease;
-    }
-    
-    #theme-toggle:hover .theme-icon {
-        transform: rotate(20deg);
-    }
-    
-    /* 以下、元のスタイルをそのまま維持 */
     * {
         box-sizing: border-box;
     }
@@ -155,6 +30,7 @@
     .header-title {
         font-size: 20px;
         font-weight: 700;
+        color: var(--text-color);
         flex: 1;
         text-align: center;
         letter-spacing: -0.5px;
@@ -165,6 +41,7 @@
         border: none;
         cursor: pointer;
         padding: 8px;
+        color: var(--text-color);
         display: flex;
         align-items: center;
         justify-content: center;
@@ -205,16 +82,20 @@
     }
     
     .total-card {
+        background: var(--card-bg);
         border-radius: 16px;
         padding: 32px 24px;
         text-align: center;
+        box-shadow: 0 2px 8px var(--shadow-color);
         display: flex;
         flex-direction: column;
         justify-content: center;
+        border: 1px solid var(--border-color);
     }
     
     .total-label {
         font-size: 14px;
+        color: var(--text-secondary);
         margin-bottom: 12px;
         font-weight: 700;
         text-transform: uppercase;
@@ -224,11 +105,13 @@
     .total-amount {
         font-size: 52px;
         font-weight: 700;
+        color: var(--text-color);
         margin-bottom: 32px;
         letter-spacing: -1.5px;
         line-height: 1.1;
     }
     
+    /* 損益と前日比のグリッド表示 */
     .profit-day-grid {
         display: grid;
         grid-template-columns: 1fr 1fr;
@@ -256,6 +139,7 @@
     .profit-label,
     .day-change-label {
         font-size: 15px;
+        color: var(--text-secondary);
         font-weight: 700;
     }
     
@@ -270,12 +154,12 @@
     
     .profit-badge.positive,
     .day-change-badge.positive {
-        background: #dc3545;
+        background: var(--danger-color);
     }
     
     .profit-badge.negative,
     .day-change-badge.negative {
-        background: #28a745;
+        background: var(--success-color);
     }
     
     .profit-badge.zero,
@@ -294,25 +178,27 @@
     
     .profit-amount.positive,
     .day-change-amount.positive {
-        color: #dc3545;
+        color: var(--danger-color);
     }
     
     .profit-amount.negative,
     .day-change-amount.negative {
-        color: #28a745;
+        color: var(--success-color);
     }
     
     .profit-amount.zero,
     .day-change-amount.zero {
-        color: #333;
+        color: var(--text-color);
     }
     
     .update-time {
         font-size: 13px;
+        color: var(--text-secondary);
         margin-top: 16px;
         font-weight: 600;
     }
     
+    /* 資産カードグリッド - 完全レスポンシブ */
     .asset-grid {
         display: grid;
         grid-template-columns: repeat(2, 1fr);
@@ -322,6 +208,7 @@
     }
     
     .asset-card {
+        background: var(--card-bg);
         border-radius: 14px;
         padding: 12px;
         cursor: pointer;
@@ -330,13 +217,15 @@
         color: inherit;
         display: flex;
         flex-direction: column;
+        box-shadow: 0 2px 8px var(--shadow-color);
+        border: 1px solid var(--border-color);
         min-height: auto;
         width: 100%;
         min-width: 0;
     }
     
     .asset-card:hover {
-        box-shadow: 0 4px 16px var(--shadow);
+        box-shadow: 0 4px 16px var(--shadow-color);
         transform: translateY(-2px);
     }
     
@@ -370,6 +259,7 @@
     
     .card-name-new {
         font-size: 11px;
+        color: var(--text-secondary);
         margin-bottom: 3px;
         font-weight: 600;
         white-space: nowrap;
@@ -378,22 +268,13 @@
     }
     
     .card-amount-new {
-        font-size: 20px;
+        font-size: 17px;
         font-weight: 700;
+        color: var(--text-color);
         letter-spacing: -0.5px;
         white-space: nowrap;
         overflow: hidden;
         text-overflow: ellipsis;
-    }
-    
-    .card-amount-new.amount-large {
-        font-size: 17px;
-        letter-spacing: -0.8px;
-    }
-
-    .card-amount-new.amount-xlarge {
-        font-size: 15px;
-        letter-spacing: -1px;
     }
     
     .card-details {
@@ -411,6 +292,7 @@
     
     .detail-label {
         font-size: 10px;
+        color: var(--text-secondary);
         font-weight: 600;
         min-width: 36px;
         flex-shrink: 0;
@@ -427,11 +309,11 @@
     }
     
     .detail-badge.positive {
-        background: #dc3545;
+        background: var(--danger-color);
     }
     
     .detail-badge.negative {
-        background: #28a745;
+        background: var(--success-color);
     }
     
     .detail-badge.zero {
@@ -448,22 +330,25 @@
         text-overflow: ellipsis;
     }
     
-    .profit-plus { color: #dc3545; }
-    .profit-minus { color: #28a745; }
-    .zero { color: #333; }
+    .profit-plus { color: var(--danger-color); }
+    .profit-minus { color: var(--success-color); }
+    .zero { color: var(--text-color); }
 
     .chart-container-with-tabs {
+        background: var(--card-bg);
         border-radius: 16px;
         padding: 20px;
+        box-shadow: 0 2px 8px var(--shadow-color);
         height: 450px;
         margin-bottom: 24px;
         display: flex;
         flex-direction: column;
+        border: 1px solid var(--border-color);
     }
 
     .tab-nav {
         display: flex;
-        border-bottom: 2px solid;
+        border-bottom: 2px solid var(--border-color);
         flex-shrink: 0;
         margin-bottom: 12px;
         overflow-x: auto;
@@ -477,6 +362,7 @@
         background: none;
         border: none;
         font-size: 14px;
+        color: var(--text-secondary);
         border-bottom: 3px solid transparent;
         transition: all 0.2s ease;
         font-weight: 700;
@@ -486,11 +372,12 @@
     }
     
     .tab-btn.active {
-        border-bottom-color: #007bff;
+        color: var(--text-color);
+        border-bottom-color: var(--accent-color);
     }
 
     .tab-btn:hover:not(.active) {
-        opacity: 0.7;
+        color: var(--text-secondary);
     }
     
     .tab-content-wrapper {
@@ -536,6 +423,7 @@
         font-weight: 600;
         white-space: nowrap;
         flex-shrink: 0;
+        color: var(--text-color);
     }
     
     .legend-controls input[type="checkbox"] {
@@ -564,7 +452,7 @@
         height: 100%;
     }
 
-    /* レスポンシブデザイン（元のまま） */
+    /* 極小スマホ（320px~374px） */
     @media (max-width: 374px) {
         .container {
             padding: 12px 8px;
@@ -636,6 +524,7 @@
         }
     }
 
+    /* スマホ（375px~599px） */
     @media (min-width: 375px) and (max-width: 599px) {
         .container {
             padding: 16px 12px;
@@ -703,6 +592,7 @@
         }
     }
 
+    /* タブレット（600px~991px） */
     @media (min-width: 600px) and (max-width: 991px) {
         .asset-grid {
             grid-template-columns: repeat(3, 1fr);
@@ -745,6 +635,7 @@
         }
     }
 
+    /* デスクトップ（992px以上） */
     @media (min-width: 992px) {
         .container {
             max-width: 1200px;
@@ -836,9 +727,16 @@
 {% endblock %}
 
 {% block content %}
+<!-- ヘッダー -->
 {% include 'components/dashboard_header.html' %}
+
+<!-- 総資産サマリー -->
 {% include 'components/dashboard_summary.html' %}
+
+<!-- チャート -->
 {% include 'components/dashboard_charts.html' %}
+
+<!-- 資産カード -->
 {% include 'components/dashboard_asset_cards.html' %}
 {% endblock %}
 
