@@ -212,8 +212,8 @@ class DatabaseManager:
                     except Exception as e:
                         logger.error(f"❌ Error returning connection to pool: {e}")
         else:
-            # SQLite
-            conn = sqlite3.connect('portfolio.db', timeout=10.0)
+            # SQLite: タイムアウトを30秒に延長（ロック対策）
+            conn = sqlite3.connect('portfolio.db', timeout=30.0)
             conn.row_factory = sqlite3.Row
             try:
                 yield conn
