@@ -4,6 +4,8 @@
 
 {% block extra_styles %}
 <style>
+    /* ヘッダー削除に伴い、戻るボタンなどをサマリーカードに統合 */
+    
     /* サマリーカード */
     .summary-card {
         background: var(--card-bg);
@@ -13,35 +15,32 @@
         text-align: center;
         box-shadow: 0 2px 8px var(--shadow-color);
         border: 1px solid var(--border-color);
-        position: relative; /* ホームボタンの配置用 */
+        position: relative; /* ホームボタン配置用 */
+        margin-top: 16px;
     }
     
-    .home-icon {
+    .home-icon-btn {
         position: absolute;
         top: 20px;
         left: 20px;
+        width: 40px;
+        height: 40px;
+        border-radius: 50%;
+        background: var(--bg-color);
         color: var(--text-secondary);
-        width: 36px;
-        height: 36px;
         display: flex;
         align-items: center;
         justify-content: center;
-        border-radius: 50%;
-        background: var(--hover-bg);
+        border: 1px solid var(--border-color);
         transition: all 0.2s ease;
+        cursor: pointer;
         text-decoration: none;
     }
-
-    .home-icon:hover {
-        background: var(--chip-selected-bg);
-        color: var(--accent-color);
-        transform: scale(1.1);
-    }
-
-    .home-icon svg {
-        width: 22px;
-        height: 22px;
-        fill: currentColor;
+    
+    .home-icon-btn:hover {
+        background: var(--hover-bg);
+        color: var(--text-color);
+        transform: scale(1.05);
     }
     
     .summary-title {
@@ -76,7 +75,7 @@
     .profit-negative { color: var(--success-color); }
     .profit-zero { color: var(--text-secondary); }
     
-    /* 新しい資産カードスタイル */
+    /* 資産カードスタイル */
     .asset-card-new {
         background: var(--card-bg);
         border-radius: 16px;
@@ -87,7 +86,7 @@
         transition: transform 0.2s ease, box-shadow 0.2s ease;
         position: relative;
         overflow: hidden;
-        cursor: grab; /* ドラッグ可能なカーソル */
+        cursor: grab;
     }
     
     .asset-card-new:active {
@@ -99,7 +98,25 @@
         box-shadow: 0 8px 20px var(--shadow-color);
     }
 
-    /* カードヘッダー: 銘柄名と現在値 */
+    /* 現金用シンプルスタイル */
+    .cash-content {
+        padding: 4px;
+    }
+    .cash-name {
+        font-size: 16px;
+        font-weight: 700;
+        color: var(--text-secondary);
+        margin-bottom: 8px;
+    }
+    .cash-amount {
+        font-size: 32px;
+        font-weight: 700;
+        color: var(--text-color);
+        margin-bottom: 4px;
+        letter-spacing: -0.5px;
+    }
+
+    /* 通常カードヘッダー */
     .card-row-header {
         display: flex;
         justify-content: space-between;
@@ -160,7 +177,7 @@
         display: grid;
         grid-template-columns: 1fr 1fr;
         gap: 16px;
-        margin-bottom: 20px;
+        margin-bottom: 16px;
     }
 
     .detail-box {
@@ -192,7 +209,7 @@
     /* 損益専用スタイル */
     .profit-box {
         grid-column: span 2;
-        background: var(--bg-color); /* 少し目立たせる */
+        background: var(--bg-color);
         display: flex;
         justify-content: space-between;
         align-items: center;
@@ -215,38 +232,40 @@
         margin-left: 6px;
     }
 
-    /* アクションボタン */
-    .action-buttons {
+    /* アクションアイコン */
+    .action-icons-row {
         display: flex;
-        gap: 10px;
+        justify-content: flex-end;
+        gap: 12px;
+        padding-top: 12px;
+        border-top: 1px solid var(--border-color);
+        margin-top: 8px;
     }
 
-    .action-btn {
-        flex: 1;
-        padding: 12px;
-        border-radius: 8px;
+    .icon-action-btn {
+        background: transparent;
         border: none;
-        font-weight: 600;
-        font-size: 14px;
         cursor: pointer;
-        text-align: center;
-        text-decoration: none;
-        transition: background-color 0.2s;
+        padding: 8px;
+        border-radius: 8px;
+        color: var(--text-secondary);
+        transition: all 0.2s ease;
+        display: flex;
+        align-items: center;
+        justify-content: center;
     }
 
-    .btn-edit {
-        background: var(--success-color);
-        color: white;
+    .icon-action-btn:hover {
+        background: var(--hover-bg);
+        color: var(--text-color);
     }
-    .btn-edit:hover { background: #218838; }
 
-    .btn-delete {
-        background: var(--danger-color);
-        color: white;
+    .icon-action-btn.delete:hover {
+        color: var(--danger-color);
+        background: rgba(220, 53, 69, 0.1);
     }
-    .btn-delete:hover { background: #c82333; }
 
-    /* 追加ボタン (常に右下固定) */
+    /* 追加ボタン (FAB) */
     .add-button {
         position: fixed;
         bottom: 24px;
@@ -328,7 +347,6 @@
 
     .empty-state { text-align: center; padding: 60px 20px; color: var(--text-secondary); }
     .empty-state-icon { font-size: 64px; margin-bottom: 16px; opacity: 0.3; }
-    .empty-nav { margin-bottom: 30px; display: flex; justify-content: flex-start; }
 
     /* レスポンシブ対応 */
     @media (min-width: 768px) {
@@ -346,6 +364,8 @@
 {% endblock %}
 
 {% block content %}
+<!-- ヘッダー削除済 -->
+
 <!-- 時価総額サマリー -->
 {% if assets %}
     {% set total_value = namespace(amount=0) %}
@@ -369,9 +389,12 @@
     {% set total_profit_rate = (total_profit / total_cost.amount * 100) if total_cost.amount > 0 else 0 %}
     
     <div class="summary-card">
-        <!-- ホームボタン (左上) -->
-        <a href="{{ url_for('dashboard.dashboard') }}" class="home-icon" title="ダッシュボードへ戻る">
-            <svg viewBox="0 0 24 24"><path d="M10 20v-6h4v6h5v-8h3L12 3 2 12h3v8z"/></svg>
+        <!-- ホームアイコン (ダッシュボードへ戻る) -->
+        <a href="{{ url_for('dashboard.dashboard') }}" class="home-icon-btn" title="ダッシュボードへ戻る">
+            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path>
+                <polyline points="9 22 9 12 15 12 15 22"></polyline>
+            </svg>
         </a>
 
         <div class="summary-title">{{ info.title }} 時価総額</div>
@@ -396,139 +419,155 @@
     </div>
 {% endif %}
 
-<!-- 追加ボタン (固定) -->
-<button class="add-button" onclick="showAddForm()">＋</button>
+<!-- 追加ボタン (常にFAB) -->
+<button class="add-button" onclick="showAddForm()">
+    <span>＋</span>
+</button>
 
 <!-- 資産リスト（カードグリッド） -->
 <div class="asset-card-grid" id="sortable-grid">
 {% if assets %}
     {% for asset in assets %}
         <div class="asset-card-new" data-id="{{ asset.id }}">
-            <!-- ヘッダー: 名前と現在値 -->
-            <div class="card-row-header">
-                <div class="asset-info">
-                    <!-- 日本株の場合、名前があれば名前を、なければコードを表示 -->
-                    <div class="asset-name">{{ asset['name'] or asset['symbol'] }}</div>
-                    <div class="asset-code">{{ asset['symbol'] }}</div>
+            
+            {% if asset_type == 'cash' %}
+                <!-- 現金用シンプルレイアウト -->
+                <div class="cash-content">
+                    <div class="cash-name">{{ asset.symbol }}</div>
+                    <div class="cash-amount">¥{{ "{:,.0f}".format(asset.quantity) }}</div>
                 </div>
-                <div class="asset-current-price">
-                    <span class="price-label">現在値</span>
-                    <div class="price-value">
-                        {% if asset_type == 'us_stock' %}
-                            ${{ "{:,.2f}".format(asset['price']) }}
-                        {% elif asset_type == 'investment_trust' %}
-                            ¥{{ "{:,.0f}".format(asset['price']) }}
-                        {% else %}
-                            ¥{{ "{:,.0f}".format(asset['price']) }}
-                        {% endif %}
+            {% else %}
+                <!-- その他の資産レイアウト -->
+                <!-- ヘッダー: 名前と現在値 -->
+                <div class="card-row-header">
+                    <div class="asset-info">
+                        <div class="asset-name">{{ asset['name'] or asset['symbol'] }}</div>
+                        <div class="asset-code">{{ asset['symbol'] }}</div>
                     </div>
-                </div>
-            </div>
-
-            <!-- 詳細グリッド -->
-            <div class="card-grid-details">
-                {% if asset_type == 'insurance' %}
-                    <div class="detail-box">
-                        <span class="detail-title">保険金額</span>
-                        <span class="detail-data">¥{{ "{:,.0f}".format(asset.quantity) }}</span>
-                    </div>
-                    <div class="detail-box">
-                        <span class="detail-title">支払済額</span>
-                        <span class="detail-data">¥{{ "{:,.0f}".format(asset.avg_cost) }}</span>
-                    </div>
-                    <div class="profit-box">
-                        <span class="detail-title">評価損益</span>
-                        {% set profit = asset.price - asset.avg_cost %}
-                        {% set profit_rate = (profit / asset.avg_cost * 100) if asset.avg_cost > 0 else 0 %}
-                        <div class="profit-value-group {% if profit > 0 %}profit-positive{% elif profit < 0 %}profit-negative{% else %}profit-zero{% endif %}">
-                            <span class="profit-val">{% if profit > 0 %}+{% endif %}¥{{ "{:,.0f}".format(profit) }}</span>
-                            <span class="profit-pct">({% if profit > 0 %}+{% endif %}{{ "{:.1f}".format(profit_rate) }}%)</span>
-                        </div>
-                    </div>
-
-                {% elif asset_type == 'cash' %}
-                    <div class="detail-box" style="grid-column: span 2;">
-                        <span class="detail-title">金額</span>
-                        <span class="detail-data large">¥{{ "{:,.0f}".format(asset.quantity) }}</span>
-                    </div>
-
-                {% else %}
-                    <!-- 株・投信・暗号資産など -->
-                    <div class="detail-box">
-                        <span class="detail-title">{{ info.quantity_label }}</span>
-                        <span class="detail-data">{{ "{:,.2f}".format(asset['quantity']) }}</span>
-                    </div>
-                    
-                    <div class="detail-box">
-                        <span class="detail-title">平均取得単価</span>
-                        <span class="detail-data">
+                    <div class="asset-current-price">
+                        <span class="price-label">現在値</span>
+                        <div class="price-value">
                             {% if asset_type == 'us_stock' %}
-                                ${{ "{:,.2f}".format(asset['avg_cost']) }}
-                            {% else %}
-                                ¥{{ "{:,.0f}".format(asset['avg_cost']) }}
-                            {% endif %}
-                        </span>
-                    </div>
-                    
-                    <div class="detail-box">
-                        <span class="detail-title">評価額</span>
-                        <span class="detail-data large">
-                            {% if asset_type == 'us_stock' %}
-                                ${{ "{:,.2f}".format(asset['quantity'] * asset['price']) }}
+                                ${{ "{:,.2f}".format(asset['price']) }}
                             {% elif asset_type == 'investment_trust' %}
-                                ¥{{ "{:,.0f}".format((asset['quantity'] * asset['price']) / 10000) }}
+                                ¥{{ "{:,.0f}".format(asset['price']) }}
                             {% else %}
-                                ¥{{ "{:,.0f}".format(asset['quantity'] * asset['price']) }}
+                                ¥{{ "{:,.0f}".format(asset['price']) }}
                             {% endif %}
-                        </span>
-                    </div>
-
-                    <!-- 損益計算 -->
-                    {% if asset_type == 'investment_trust' %}
-                        {% set current_val = (asset['quantity'] * asset['price']) / 10000 %}
-                        {% set cost_val = (asset['quantity'] * asset['avg_cost']) / 10000 %}
-                    {% else %}
-                        {% set current_val = asset['quantity'] * asset['price'] %}
-                        {% set cost_val = asset['quantity'] * asset['avg_cost'] %}
-                    {% endif %}
-                    {% set profit = current_val - cost_val %}
-                    {% set profit_rate = (profit / cost_val * 100) if cost_val > 0 else 0 %}
-                    
-                    <div class="detail-box">
-                        <span class="detail-title">評価損益</span>
-                        <div class="{% if profit > 0 %}profit-positive{% elif profit < 0 %}profit-negative{% else %}profit-zero{% endif %}" style="font-weight: 700;">
-                            {% if profit > 0 %}+{% endif %}
-                            {% if asset_type == 'us_stock' %}
-                                ${{ "{:,.2f}".format(profit) }}
-                            {% else %}
-                                ¥{{ "{:,.0f}".format(profit) }}
-                            {% endif %}
-                            <br>
-                            <span style="font-size: 12px;">({% if profit > 0 %}+{% endif %}{{ "{:.1f}".format(profit_rate) }}%)</span>
                         </div>
                     </div>
-                {% endif %}
-            </div>
+                </div>
 
-            <!-- アクションボタン -->
-            <div class="action-buttons">
-                <a href="{{ url_for('assets.edit_asset', asset_id=asset['id']) }}" class="action-btn btn-edit">編集</a>
-                <form method="post" action="{{ url_for('assets.delete_asset') }}" style="flex: 1; display: flex;">
+                <!-- 詳細グリッド -->
+                <div class="card-grid-details">
+                    {% if asset_type == 'insurance' %}
+                        <div class="detail-box">
+                            <span class="detail-title">保険金額</span>
+                            <span class="detail-data">¥{{ "{:,.0f}".format(asset.quantity) }}</span>
+                        </div>
+                        <div class="detail-box">
+                            <span class="detail-title">支払済額</span>
+                            <span class="detail-data">¥{{ "{:,.0f}".format(asset.avg_cost) }}</span>
+                        </div>
+                        <div class="profit-box">
+                            <span class="detail-title">評価損益</span>
+                            {% set profit = asset.price - asset.avg_cost %}
+                            {% set profit_rate = (profit / asset.avg_cost * 100) if asset.avg_cost > 0 else 0 %}
+                            <div class="profit-value-group {% if profit > 0 %}profit-positive{% elif profit < 0 %}profit-negative{% else %}profit-zero{% endif %}">
+                                <span class="profit-val">{% if profit > 0 %}+{% endif %}¥{{ "{:,.0f}".format(profit) }}</span>
+                                <span class="profit-pct">({% if profit > 0 %}+{% endif %}{{ "{:.1f}".format(profit_rate) }}%)</span>
+                            </div>
+                        </div>
+
+                    {% else %}
+                        <div class="detail-box">
+                            <span class="detail-title">{{ info.quantity_label }}</span>
+                            <span class="detail-data">{{ "{:,.2f}".format(asset['quantity']) }}</span>
+                        </div>
+                        
+                        <div class="detail-box">
+                            <span class="detail-title">平均取得単価</span>
+                            <span class="detail-data">
+                                {% if asset_type == 'us_stock' %}
+                                    ${{ "{:,.2f}".format(asset['avg_cost']) }}
+                                {% else %}
+                                    ¥{{ "{:,.0f}".format(asset['avg_cost']) }}
+                                {% endif %}
+                            </span>
+                        </div>
+                        
+                        <div class="detail-box">
+                            <span class="detail-title">評価額</span>
+                            <span class="detail-data large">
+                                {% if asset_type == 'us_stock' %}
+                                    ${{ "{:,.2f}".format(asset['quantity'] * asset['price']) }}
+                                {% elif asset_type == 'investment_trust' %}
+                                    ¥{{ "{:,.0f}".format((asset['quantity'] * asset['price']) / 10000) }}
+                                {% else %}
+                                    ¥{{ "{:,.0f}".format(asset['quantity'] * asset['price']) }}
+                                {% endif %}
+                            </span>
+                        </div>
+
+                        <!-- 損益計算 -->
+                        {% if asset_type == 'investment_trust' %}
+                            {% set current_val = (asset['quantity'] * asset['price']) / 10000 %}
+                            {% set cost_val = (asset['quantity'] * asset['avg_cost']) / 10000 %}
+                        {% else %}
+                            {% set current_val = asset['quantity'] * asset['price'] %}
+                            {% set cost_val = asset['quantity'] * asset['avg_cost'] %}
+                        {% endif %}
+                        {% set profit = current_val - cost_val %}
+                        {% set profit_rate = (profit / cost_val * 100) if cost_val > 0 else 0 %}
+                        
+                        <div class="detail-box">
+                            <span class="detail-title">評価損益</span>
+                            <div class="{% if profit > 0 %}profit-positive{% elif profit < 0 %}profit-negative{% else %}profit-zero{% endif %}" style="font-weight: 700;">
+                                {% if profit > 0 %}+{% endif %}
+                                {% if asset_type == 'us_stock' %}
+                                    ${{ "{:,.2f}".format(profit) }}
+                                {% else %}
+                                    ¥{{ "{:,.0f}".format(profit) }}
+                                {% endif %}
+                                <br>
+                                <span style="font-size: 12px;">({% if profit > 0 %}+{% endif %}{{ "{:.1f}".format(profit_rate) }}%)</span>
+                            </div>
+                        </div>
+                    {% endif %}
+                </div>
+            {% endif %}
+
+            <!-- アクションアイコン (共通) -->
+            <div class="action-icons-row">
+                <a href="{{ url_for('assets.edit_asset', asset_id=asset['id']) }}" class="icon-action-btn" title="編集">
+                    <!-- 編集アイコン (Pencil) -->
+                    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path>
+                        <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path>
+                    </svg>
+                </a>
+                <form method="post" action="{{ url_for('assets.delete_asset') }}" style="display: flex;">
                     <input type="hidden" name="asset_id" value="{{ asset['id'] }}">
-                    <button type="submit" class="action-btn btn-delete" onclick="return confirm('削除しますか?')" style="width: 100%;">削除</button>
+                    <button type="submit" class="icon-action-btn delete" onclick="return confirm('削除しますか?')" title="削除">
+                        <!-- 削除アイコン (Trash) -->
+                        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <polyline points="3 6 5 6 21 6"></polyline>
+                            <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
+                            <line x1="10" y1="11" x2="10" y2="17"></line>
+                            <line x1="14" y1="11" x2="14" y2="17"></line>
+                        </svg>
+                    </button>
                 </form>
             </div>
         </div>
     {% endfor %}
 {% else %}
-    <div class="empty-nav">
-         <a href="{{ url_for('dashboard.dashboard') }}" class="home-icon" title="ダッシュボードへ戻る">
-            <svg viewBox="0 0 24 24"><path d="M10 20v-6h4v6h5v-8h3L12 3 2 12h3v8z"/></svg>
-        </a>
-    </div>
     <div class="empty-state">
         <div class="empty-state-icon">📭</div>
         <p>登録されている資産はありません。<br>右下のボタンから追加してください。</p>
+        <br>
+        <!-- 初期状態でもダッシュボードに戻れるようにリンクを表示 -->
+        <a href="{{ url_for('dashboard.dashboard') }}" style="color: var(--accent-color); font-weight: 600; text-decoration: none;">← ダッシュボードへ戻る</a>
     </div>
 {% endif %}
 </div>
